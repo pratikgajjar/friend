@@ -10,7 +10,6 @@ export function ChallengeBoard() {
   
   const group = useSyncStore((s) => s.group)
   const currentUserId = useSyncStore((s) => s.currentUserId)
-  const connectedPeers = useSyncStore((s) => s.connectedPeers)
   const advancePhase = useSyncStore((s) => s.advancePhase)
   const joinGroup = useSyncStore((s) => s.joinGroup)
   const currentRoomCode = useSyncStore((s) => s.currentRoomCode)
@@ -68,7 +67,7 @@ export function ChallengeBoard() {
         <div className={styles.headerRight}>
           <div className={styles.peerStatus}>
             <span className={styles.peerDot} />
-            <span>{connectedPeers} online</span>
+            <span>synced</span>
           </div>
           
           <button 
@@ -471,7 +470,6 @@ function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: st
 
 function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
-  const connectedPeers = useSyncStore((s) => s.connectedPeers)
   
   const inviteUrl = `${window.location.origin}/join/${code}`
   
@@ -523,9 +521,9 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
 
         <div className={styles.syncStatus}>
           <span className={styles.peerDot} />
-          <span>{connectedPeers} peer{connectedPeers !== 1 ? 's' : ''} connected</span>
+          <span>Syncs across browser tabs</span>
           <span className={styles.syncHint}>
-            Friends can join when you're online
+            Open this link in another tab to test
           </span>
         </div>
       </motion.div>
