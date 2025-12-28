@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
 import { Turnstile } from '../components/Turnstile'
+import { getKeyFromUrl, getRoomKey } from '../lib/crypto'
 import styles from './JoinGroup.module.css'
 
 export function JoinGroup() {
   const navigate = useNavigate()
-  const { code } = useParams<{ code: string }>()
+  const location = useLocation()
+  const { code, token: pathToken } = useParams<{ code?: string; token?: string }>()
   const [searchParams] = useSearchParams()
-  const token = searchParams.get('token')
+  const token = pathToken || searchParams.get('token')
   
   const joinGroup = useSyncStore((s) => s.joinGroup)
   const joinWithToken = useSyncStore((s) => s.joinWithToken)
@@ -19,16 +21,37 @@ export function JoinGroup() {
   const [isJoining, setIsJoining] = useState(false)
   const [tokenVerified, setTokenVerified] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [hasEncryptionKey, setHasEncryptionKey] = useState(true)
+
+  // Check for encryption key
+  useEffect(() => {
+    const keyFromUrl = getKeyFromUrl()
+    const keyFromStorage = code ? getRoomKey(code) : null
+    
+    if (!keyFromUrl && !keyFromStorage && !token) {
+      setHasEncryptionKey(false)
+      setError('Missing encryption key. Please use the full invite link shared with you.')
+    } else {
+      setHasEncryptionKey(true)
+      setError('')
+    }
+  }, [code, token, location.hash])
 
   // Handle magic link token
   useEffect(() => {
     if (token && !tokenVerified) {
+      const keyFromUrl = getKeyFromUrl()
+      if (!keyFromUrl) {
+        setError('Missing encryption key in magic link. Please use the complete link.')
+        return
+      }
+      
       setIsJoining(true)
       joinWithToken(token).then((result) => {
         if (result) {
           setTokenVerified(true)
-          // Redirect to room (clean URL without token)
-          navigate(`/room/${result.roomCode}`, { replace: true })
+          // Redirect to room with encryption key in hash
+          navigate(`/room/${result.roomCode}#key=${encodeURIComponent(keyFromUrl)}`, { replace: true })
         } else {
           setError('Invalid or expired magic link. Please join with your name.')
           setIsJoining(false)
@@ -39,7 +62,7 @@ export function JoinGroup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !code || !turnstileToken || isJoining) return
+    if (!name.trim() || !code || !turnstileToken || isJoining || !hasEncryptionKey) return
 
     setIsJoining(true)
     setError('')
@@ -49,12 +72,12 @@ export function JoinGroup() {
       if (group) {
         navigate(`/room/${code}`)
       } else {
-        setError('Group not found. Please check the code and try again.')
+        setError('Failed to join. Make sure you have the complete invite link.')
         setIsJoining(false)
         setTurnstileToken(null)
       }
-    } catch (err) {
-      setError('Failed to join group. Please try again.')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to join group. Please try again.')
       setIsJoining(false)
       setTurnstileToken(null)
     }
@@ -102,10 +125,10 @@ export function JoinGroup() {
         </div>
 
         <div className={styles.syncNote}>
-          <span>🚀</span>
+          <span>🔐</span>
           <p>
-            Enter your name to join. You'll get a magic link to 
-            access from any device.
+            End-to-end encrypted. Enter your name to join - you'll get 
+            a magic link to access from any device.
           </p>
         </div>
 
@@ -139,7 +162,7 @@ export function JoinGroup() {
           <button 
             type="submit" 
             className={styles.submitBtn}
-            disabled={!name.trim() || !turnstileToken || isJoining}
+            disabled={!name.trim() || !turnstileToken || isJoining || !hasEncryptionKey}
           >
             {isJoining ? 'Connecting...' : 'Join Group'}
           </button>

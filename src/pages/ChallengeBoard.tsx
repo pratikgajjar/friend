@@ -15,6 +15,7 @@ export function ChallengeBoard() {
   const startPolling = useSyncStore((s) => s.startPolling)
   const stopPolling = useSyncStore((s) => s.stopPolling)
   const restoreFromStorage = useSyncStore((s) => s.restoreFromStorage)
+  const setEncryptionKeyFromUrl = useSyncStore((s) => s.setEncryptionKeyFromUrl)
   const getMagicLink = useSyncStore((s) => s.getMagicLink)
   const isLoading = useSyncStore((s) => s.isLoading)
   
@@ -25,8 +26,9 @@ export function ChallengeBoard() {
   // Fetch group data and start polling
   useEffect(() => {
     if (code) {
-      // Restore identity from localStorage
+      // Restore identity and encryption key from localStorage/URL
       restoreFromStorage(code)
+      setEncryptionKeyFromUrl()
       
       fetchGroup(code)
       startPolling()
@@ -35,7 +37,7 @@ export function ChallengeBoard() {
     return () => {
       stopPolling()
     }
-  }, [code, fetchGroup, startPolling, stopPolling, restoreFromStorage])
+  }, [code, fetchGroup, startPolling, stopPolling, restoreFromStorage, setEncryptionKeyFromUrl])
 
   if (!group && isLoading) {
     return (
@@ -538,8 +540,9 @@ function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: st
 
 function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
+  const getInviteLink = useSyncStore((s) => s.getInviteLink)
   
-  const inviteUrl = `${window.location.origin}/join/${code}`
+  const inviteUrl = getInviteLink() || `${window.location.origin}/join/${code}`
   
   const handleCopy = async () => {
     await navigator.clipboard.writeText(inviteUrl)
@@ -564,12 +567,19 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
       >
         <button className={styles.modalClose} onClick={onClose}>×</button>
         
-        <h2>Invite Friends</h2>
-        <p>Share this code or link with your friends</p>
+        <h2>🔒 Invite Friends</h2>
+        <p>Share this encrypted link with your friends</p>
 
         <div className={styles.inviteCode}>
           <span className={styles.codeLabel}>Room Code</span>
           <span className={styles.codeValue}>{code}</span>
+        </div>
+
+        <div className={styles.magicLinkWarning}>
+          <span>🔐</span>
+          <p>
+            <strong>End-to-end encrypted!</strong> The key is in the link - we can't read your data.
+          </p>
         </div>
 
         <div className={styles.inviteLink}>
@@ -684,6 +694,7 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const getParticipantTokens = useSyncStore((s) => s.getParticipantTokens)
+  const encryptionKey = useSyncStore((s) => s.encryptionKey)
   
   useEffect(() => {
     const fetchTokens = async () => {
@@ -697,7 +708,11 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
   }, [getParticipantTokens])
 
   const handleCopy = async (id: string, token: string) => {
-    const magicLink = `${window.location.origin}/join/auth/${token}`
+    // Include encryption key in magic link
+    let magicLink = `${window.location.origin}/join/auth/${token}`
+    if (encryptionKey) {
+      magicLink += `#key=${encodeURIComponent(encryptionKey)}`
+    }
     await navigator.clipboard.writeText(magicLink)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
