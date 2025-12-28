@@ -34,6 +34,8 @@ export interface Group {
 
 interface SyncState {
   currentUserId: string | null
+  currentUserName: string | null
+  magicToken: string | null
   currentRoomCode: string | null
   group: Group | null
   isLoading: boolean
@@ -42,6 +44,7 @@ interface SyncState {
   // Actions
   createGroup: (name: string, hostName: string, challengesPerPerson: number) => Promise<Group>
   joinGroup: (code: string, name: string) => Promise<Group | null>
+  joinWithToken: (token: string) => Promise<{ roomCode: string; name: string } | null>
   fetchGroup: (code: string) => Promise<Group | null>
   leaveGroup: () => void
   
@@ -53,6 +56,10 @@ interface SyncState {
   advancePhase: () => Promise<void>
   setDeadline: (deadline: string) => Promise<void>
   
+  // Magic link helpers
+  getMagicLink: () => string | null
+  restoreFromStorage: (code: string) => boolean
+  
   // Polling for updates
   startPolling: () => void
   stopPolling: () => void
@@ -60,8 +67,15 @@ interface SyncState {
 
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
+// Storage keys
+const getTokenKey = (code: string) => `magic-${code}`
+const getUserKey = (code: string) => `user-${code}`
+const getNameKey = (code: string) => `name-${code}`
+
 export const useSyncStore = create<SyncState>((set, get) => ({
   currentUserId: null,
+  currentUserName: null,
+  magicToken: null,
   currentRoomCode: null,
   group: null,
   isLoading: false,
@@ -79,19 +93,33 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to create group')
       
-      const group = await res.json()
+      const data = await res.json()
       
-      // Save user ID to localStorage
-      localStorage.setItem(`user-${group.code}`, group.hostId)
+      // Save magic token and user info to localStorage
+      localStorage.setItem(getTokenKey(data.code), data.token)
+      localStorage.setItem(getUserKey(data.code), data.hostId)
+      localStorage.setItem(getNameKey(data.code), hostName)
+      
+      const group: Group = {
+        id: data.id,
+        code: data.code,
+        name: data.name,
+        phase: data.phase,
+        challengesPerPerson: data.challengesPerPerson,
+        participants: data.participants,
+        challenges: data.challenges || [],
+        createdAt: new Date().toISOString(),
+      }
       
       set({
-        currentUserId: group.hostId,
-        currentRoomCode: group.code,
+        currentUserId: data.hostId,
+        currentUserName: hostName,
+        magicToken: data.token,
+        currentRoomCode: data.code,
         group,
         isLoading: false,
       })
       
-      // Start polling for updates
       get().startPolling()
       
       return group
@@ -105,12 +133,13 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     set({ isLoading: true, error: null })
     
     try {
-      const existingId = localStorage.getItem(`user-${code}`)
+      // Check if we have a stored token for this room
+      const existingToken = localStorage.getItem(getTokenKey(code))
       
       const res = await fetch(`${API_BASE}/groups/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, existingId }),
+        body: JSON.stringify({ name, existingToken }),
       })
       
       if (!res.ok) {
@@ -121,23 +150,26 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         throw new Error('Failed to join group')
       }
       
-      const { participantId } = await res.json()
+      const data = await res.json()
       
-      // Save user ID
-      localStorage.setItem(`user-${code}`, participantId)
+      // Save magic token and user info
+      localStorage.setItem(getTokenKey(code), data.token)
+      localStorage.setItem(getUserKey(code), data.participantId)
+      localStorage.setItem(getNameKey(code), data.name || name)
       
       // Fetch full group data
       const group = await get().fetchGroup(code)
       
       if (group) {
         set({
-          currentUserId: participantId,
+          currentUserId: data.participantId,
+          currentUserName: data.name || name,
+          magicToken: data.token,
           currentRoomCode: code,
           group,
           isLoading: false,
         })
         
-        // Start polling for updates
         get().startPolling()
       }
       
@@ -145,6 +177,39 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     } catch (error) {
       set({ isLoading: false, error: (error as Error).message })
       throw error
+    }
+  },
+
+  joinWithToken: async (token) => {
+    set({ isLoading: true, error: null })
+    
+    try {
+      const res = await fetch(`${API_BASE}/auth/${token}`)
+      
+      if (!res.ok) {
+        set({ isLoading: false, error: 'Invalid magic link' })
+        return null
+      }
+      
+      const data = await res.json()
+      
+      // Save to localStorage
+      localStorage.setItem(getTokenKey(data.roomCode), token)
+      localStorage.setItem(getUserKey(data.roomCode), data.participantId)
+      localStorage.setItem(getNameKey(data.roomCode), data.name)
+      
+      set({
+        currentUserId: data.participantId,
+        currentUserName: data.name,
+        magicToken: token,
+        currentRoomCode: data.roomCode,
+        isLoading: false,
+      })
+      
+      return { roomCode: data.roomCode, name: data.name }
+    } catch (error) {
+      set({ isLoading: false, error: (error as Error).message })
+      return null
     }
   },
 
@@ -170,6 +235,8 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     get().stopPolling()
     set({
       currentUserId: null,
+      currentUserName: null,
+      magicToken: null,
       currentRoomCode: null,
       group: null,
     })
@@ -188,7 +255,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to add challenge')
       
-      // Refresh group data
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to add challenge:', error)
@@ -208,7 +274,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to vote')
       
-      // Refresh group data
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to vote:', error)
@@ -228,7 +293,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to remove vote')
       
-      // Refresh group data
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to remove vote:', error)
@@ -246,7 +310,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to toggle challenge')
       
-      // Refresh group data
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to toggle challenge:', error)
@@ -264,7 +327,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to advance phase')
       
-      // Refresh group data
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to advance phase:', error)
@@ -272,12 +334,38 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   },
 
   setDeadline: async (deadline) => {
-    // TODO: Implement deadline setting
     console.log('Set deadline:', deadline)
   },
 
+  getMagicLink: () => {
+    const { magicToken, currentRoomCode } = get()
+    if (!magicToken || !currentRoomCode) return null
+    
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'https://friend-challenge.pages.dev'
+    
+    return `${baseUrl}/join/${currentRoomCode}?token=${magicToken}`
+  },
+
+  restoreFromStorage: (code) => {
+    const token = localStorage.getItem(getTokenKey(code))
+    const userId = localStorage.getItem(getUserKey(code))
+    const userName = localStorage.getItem(getNameKey(code))
+    
+    if (token && userId) {
+      set({
+        currentUserId: userId,
+        currentUserName: userName,
+        magicToken: token,
+        currentRoomCode: code,
+      })
+      return true
+    }
+    return false
+  },
+
   startPolling: () => {
-    // Poll every 3 seconds for updates
     if (pollInterval) return
     
     pollInterval = setInterval(() => {

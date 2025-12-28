@@ -9,6 +9,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const id = crypto.randomUUID().slice(0, 8)
   const code = Math.random().toString(36).substring(2, 8).toUpperCase()
   const hostId = crypto.randomUUID().slice(0, 8)
+  const token = crypto.randomUUID() // Magic link token
   const avatars = ['🔥', '⚡', '🌟', '🎯', '🚀', '💎', '🎪', '🌈', '🦊', '🐉', '🎸', '🎭']
   const avatar = avatars[Math.floor(Math.random() * avatars.length)]
   
@@ -18,9 +19,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
        VALUES (?, ?, ?, 'gathering', ?, datetime('now'))`
     ).bind(id, code, name, challengesPerPerson),
     context.env.DB.prepare(
-      `INSERT INTO participants (id, group_id, name, avatar, is_host)
-       VALUES (?, ?, ?, ?, 1)`
-    ).bind(hostId, id, hostName, avatar),
+      `INSERT INTO participants (id, group_id, name, avatar, is_host, token)
+       VALUES (?, ?, ?, ?, 1, ?)`
+    ).bind(hostId, id, hostName, avatar, token),
   ])
 
   return Response.json({ 
@@ -30,8 +31,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     phase: 'gathering',
     challengesPerPerson,
     hostId,
+    token, // Return token for magic link
     participants: [{ id: hostId, name: hostName, avatar, isHost: true }],
     challenges: [],
   })
 }
-

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
 import styles from './JoinGroup.module.css'
@@ -7,11 +7,33 @@ import styles from './JoinGroup.module.css'
 export function JoinGroup() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+  
   const joinGroup = useSyncStore((s) => s.joinGroup)
+  const joinWithToken = useSyncStore((s) => s.joinWithToken)
   
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [isJoining, setIsJoining] = useState(false)
+  const [tokenVerified, setTokenVerified] = useState(false)
+
+  // Handle magic link token
+  useEffect(() => {
+    if (token && !tokenVerified) {
+      setIsJoining(true)
+      joinWithToken(token).then((result) => {
+        if (result) {
+          setTokenVerified(true)
+          // Redirect to room (clean URL without token)
+          navigate(`/room/${result.roomCode}`, { replace: true })
+        } else {
+          setError('Invalid or expired magic link. Please join with your name.')
+          setIsJoining(false)
+        }
+      })
+    }
+  }, [token, tokenVerified, joinWithToken, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,6 +54,29 @@ export function JoinGroup() {
       setError('Failed to join group. Please try again.')
       setIsJoining(false)
     }
+  }
+
+  // Show loading if processing magic link
+  if (token && isJoining && !error) {
+    return (
+      <div className={styles.container}>
+        <motion.div 
+          className={styles.card}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className={styles.header}>
+            <span className={styles.icon}>🔐</span>
+            <h1>Magic Link</h1>
+            <p>Verifying your identity...</p>
+          </div>
+          <div className={styles.loading}>
+            <span>✨</span>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
 
   return (
@@ -55,8 +100,8 @@ export function JoinGroup() {
         <div className={styles.syncNote}>
           <span>🚀</span>
           <p>
-            Enter your name to join. All data syncs in real-time 
-            with your friends.
+            Enter your name to join. You'll get a magic link to 
+            access from any device.
           </p>
         </div>
 

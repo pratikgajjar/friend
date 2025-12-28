@@ -9,22 +9,23 @@ export function ChallengeBoard() {
   
   const group = useSyncStore((s) => s.group)
   const currentUserId = useSyncStore((s) => s.currentUserId)
+  const currentUserName = useSyncStore((s) => s.currentUserName)
   const advancePhase = useSyncStore((s) => s.advancePhase)
   const fetchGroup = useSyncStore((s) => s.fetchGroup)
   const startPolling = useSyncStore((s) => s.startPolling)
   const stopPolling = useSyncStore((s) => s.stopPolling)
+  const restoreFromStorage = useSyncStore((s) => s.restoreFromStorage)
+  const getMagicLink = useSyncStore((s) => s.getMagicLink)
   const isLoading = useSyncStore((s) => s.isLoading)
   
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showMagicLinkModal, setShowMagicLinkModal] = useState(false)
 
   // Fetch group data and start polling
   useEffect(() => {
     if (code) {
-      // Restore user ID from localStorage
-      const storedUserId = localStorage.getItem(`user-${code}`)
-      if (storedUserId) {
-        useSyncStore.setState({ currentUserId: storedUserId, currentRoomCode: code })
-      }
+      // Restore identity from localStorage
+      restoreFromStorage(code)
       
       fetchGroup(code)
       startPolling()
@@ -33,7 +34,7 @@ export function ChallengeBoard() {
     return () => {
       stopPolling()
     }
-  }, [code, fetchGroup, startPolling, stopPolling])
+  }, [code, fetchGroup, startPolling, stopPolling, restoreFromStorage])
 
   if (!group && isLoading) {
     return (
@@ -82,6 +83,16 @@ export function ChallengeBoard() {
             <span>live</span>
           </div>
           
+          {currentUserId && (
+            <button 
+              className={styles.magicLinkBtn}
+              onClick={() => setShowMagicLinkModal(true)}
+              title="Your personal link to access this room"
+            >
+              <span>🔗</span> My Link
+            </button>
+          )}
+          
           <button 
             className={styles.inviteBtn}
             onClick={() => setShowInviteModal(true)}
@@ -129,6 +140,13 @@ export function ChallengeBoard() {
           <InviteModal 
             code={group.code} 
             onClose={() => setShowInviteModal(false)} 
+          />
+        )}
+        {showMagicLinkModal && (
+          <MagicLinkModal 
+            magicLink={getMagicLink()}
+            userName={currentUserName}
+            onClose={() => setShowMagicLinkModal(false)} 
           />
         )}
       </AnimatePresence>
@@ -536,6 +554,86 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
           <span>Live sync enabled</span>
           <span className={styles.syncHint}>
             Changes sync automatically every 3 seconds
+          </span>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function MagicLinkModal({ 
+  magicLink, 
+  userName,
+  onClose 
+}: { 
+  magicLink: string | null
+  userName: string | null
+  onClose: () => void 
+}) {
+  const [copied, setCopied] = useState(false)
+  
+  const handleCopy = async () => {
+    if (!magicLink) return
+    await navigator.clipboard.writeText(magicLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <motion.div 
+      className={styles.modalOverlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div 
+        className={styles.modal}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className={styles.modalClose} onClick={onClose}>×</button>
+        
+        <h2>🔐 Your Magic Link</h2>
+        <p>
+          Save this link to access the room as <strong>{userName}</strong> from any device.
+        </p>
+
+        <div className={styles.magicLinkWarning}>
+          <span>⚠️</span>
+          <p>
+            <strong>Keep this private!</strong> Anyone with this link can act as you.
+          </p>
+        </div>
+
+        {magicLink ? (
+          <div className={styles.inviteLink}>
+            <input 
+              type="text" 
+              value={magicLink}
+              readOnly 
+              className={styles.linkInput}
+            />
+            <button 
+              className={styles.copyBtn}
+              onClick={handleCopy}
+            >
+              {copied ? '✓ Copied!' : 'Copy'}
+            </button>
+          </div>
+        ) : (
+          <p className={styles.noLink}>
+            No magic link available. Try rejoining the room.
+          </p>
+        )}
+
+        <div className={styles.syncStatus}>
+          <span className={styles.peerDot} />
+          <span>Works on any device or browser</span>
+          <span className={styles.syncHint}>
+            Bookmark it or save to notes
           </span>
         </div>
       </motion.div>
