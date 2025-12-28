@@ -286,7 +286,6 @@ function BoardPhase({
     addChallenge({
       text: newChallenge.trim(),
       forParticipantId,
-      suggestedByParticipantId: currentUserId,
     })
     
     setNewChallenge('')

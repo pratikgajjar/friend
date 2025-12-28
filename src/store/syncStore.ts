@@ -48,7 +48,7 @@ interface SyncState {
   fetchGroup: (code: string) => Promise<Group | null>
   leaveGroup: () => void
   
-  addChallenge: (challenge: Omit<Challenge, 'id' | 'votes' | 'isCompleted'>) => Promise<void>
+  addChallenge: (challenge: Omit<Challenge, 'id' | 'votes' | 'isCompleted' | 'suggestedByParticipantId'>) => Promise<void>
   deleteChallenge: (challengeId: string) => Promise<void>
   voteChallenge: (challengeId: string) => Promise<void>
   removeVote: (challengeId: string) => Promise<void>
@@ -244,15 +244,18 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     })
   },
 
-  addChallenge: async ({ text, forParticipantId, suggestedByParticipantId }) => {
-    const { currentRoomCode } = get()
-    if (!currentRoomCode) return
+  addChallenge: async ({ text, forParticipantId }) => {
+    const { currentRoomCode, currentUserId } = get()
+    if (!currentRoomCode || !currentUserId) return
     
     try {
       const res = await fetch(`${API_BASE}/groups/${currentRoomCode}/challenges`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, forParticipantId, suggestedByParticipantId }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': currentUserId,
+        },
+        body: JSON.stringify({ text, forParticipantId }),
       })
       
       if (!res.ok) throw new Error('Failed to add challenge')
@@ -270,8 +273,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     try {
       const res = await fetch(`${API_BASE}/challenges/${challengeId}/vote`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId: currentUserId }),
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) throw new Error('Failed to vote')
@@ -289,8 +291,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     try {
       const res = await fetch(`${API_BASE}/challenges/${challengeId}/vote`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId: currentUserId }),
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) throw new Error('Failed to remove vote')
@@ -302,12 +303,13 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   },
 
   toggleChallengeComplete: async (challengeId) => {
-    const { currentRoomCode } = get()
-    if (!currentRoomCode) return
+    const { currentRoomCode, currentUserId } = get()
+    if (!currentRoomCode || !currentUserId) return
     
     try {
       const res = await fetch(`${API_BASE}/challenges/${challengeId}/toggle`, {
         method: 'POST',
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) throw new Error('Failed to toggle challenge')
@@ -360,12 +362,13 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   },
 
   advancePhase: async () => {
-    const { currentRoomCode } = get()
-    if (!currentRoomCode) return
+    const { currentRoomCode, currentUserId } = get()
+    if (!currentRoomCode || !currentUserId) return
     
     try {
       const res = await fetch(`${API_BASE}/groups/${currentRoomCode}/advance`, {
         method: 'POST',
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) throw new Error('Failed to advance phase')
