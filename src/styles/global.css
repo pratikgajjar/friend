@@ -169,6 +169,23 @@ th {
   padding: 0 var(--space-lg);
 }
 
+/* Mobile-first responsive utilities */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+  
+  .container {
+    padding: 0 var(--space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+}
+
 /* Animations */
 @keyframes float {
   0%, 100% { transform: translateY(0); }

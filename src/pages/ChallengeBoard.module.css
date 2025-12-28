@@ -931,3 +931,273 @@
   font-style: italic;
 }
 
+/* Mobile responsive styles */
+@media (max-width: 900px) {
+  .header {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+  }
+  
+  .headerLeft {
+    gap: var(--space-md);
+  }
+  
+  .groupInfo h1 {
+    font-size: 1rem;
+  }
+  
+  .phases {
+    flex-wrap: wrap;
+  }
+  
+  .phaseLabel {
+    display: none;
+  }
+  
+  .headerRight {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  
+  .main {
+    padding: var(--space-md);
+  }
+  
+  .board {
+    grid-template-columns: 1fr;
+  }
+  
+  .trackingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    position: relative;
+    padding: var(--space-sm);
+  }
+  
+  .headerLeft {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .logoLink {
+    font-size: 1.2rem;
+  }
+  
+  .groupInfo {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .groupInfo h1 {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .phaseIndicator {
+    width: 100%;
+    order: 3;
+  }
+  
+  .phases {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .phase {
+    padding: 4px 8px;
+  }
+  
+  .phaseIcon {
+    font-size: 0.8rem;
+  }
+  
+  .headerRight {
+    justify-content: center;
+  }
+  
+  .inviteBtn, .magicLinkBtn, .manageLinkBtn, .advanceBtn {
+    font-size: 0.8rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+  
+  .magicLinkBtn {
+    padding: var(--space-xs) var(--space-sm);
+  }
+  
+  .userName {
+    display: none;
+  }
+  
+  .peerStatus {
+    display: none;
+  }
+  
+  /* Gathering Phase Mobile */
+  .gatheringHeader h2 {
+    font-size: 1.3rem;
+  }
+  
+  .participantGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+  
+  .participantCard {
+    padding: var(--space-md);
+  }
+  
+  .participantAvatar {
+    font-size: 2rem;
+  }
+  
+  .participantName {
+    font-size: 0.9rem;
+  }
+  
+  .addParticipant span:first-child {
+    font-size: 1.5rem;
+  }
+  
+  /* Board Phase Mobile */
+  .boardHeader h2 {
+    font-size: 1.3rem;
+  }
+  
+  .column {
+    border-radius: var(--radius-md);
+  }
+  
+  .columnHeader {
+    padding: var(--space-sm) var(--space-md);
+  }
+  
+  .challengeList {
+    padding: var(--space-sm);
+    min-height: 150px;
+  }
+  
+  .challengeCard {
+    padding: var(--space-sm);
+  }
+  
+  .challengeText {
+    font-size: 0.9rem;
+  }
+  
+  .challengeMeta {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  
+  /* Tracking Phase Mobile */
+  .trackingHeader h2 {
+    font-size: 1.3rem;
+  }
+  
+  .trackingCardHeader {
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+  
+  .trackingPerson {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .progressInfo {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .trackingChallenges {
+    padding: var(--space-sm);
+  }
+  
+  .trackingChallenge {
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+  }
+  
+  .checkBtn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+  
+  .trackingChallengeText {
+    font-size: 0.9rem;
+  }
+  
+  /* Modal Mobile */
+  .modalOverlay {
+    padding: var(--space-md);
+    align-items: flex-end;
+  }
+  
+  .modal {
+    max-width: 100%;
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  
+  .modal h2 {
+    font-size: 1.25rem;
+  }
+  
+  .codeValue {
+    font-size: 1.5rem;
+    letter-spacing: 0.2em;
+  }
+  
+  .inviteLink {
+    flex-direction: column;
+  }
+  
+  .linkInput {
+    font-size: 0.75rem;
+  }
+  
+  .copyBtn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .participantTokenItem {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .participantTokenInfo {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .participantGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .headerRight {
+    flex-direction: column;
+  }
+  
+  .inviteBtn, .magicLinkBtn, .manageLinkBtn, .advanceBtn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
