@@ -80,7 +80,33 @@ interface SyncState {
   stopPolling: () => void
 }
 
-let pollInterval: ReturnType<typeof setInterval> | null = null
+let pollInterval: ReturnType<typeof setTimeout> | null = null
+let lastFetchTime = 0
+let consecutiveNoChanges = 0
+
+// Smart polling intervals based on phase and activity
+const getPollingInterval = (phase: string, noChangeCount: number): number => {
+  // Base intervals by phase (in ms)
+  const baseIntervals: Record<string, number> = {
+    gathering: 15000,   // 15s - waiting for friends
+    suggesting: 10000,  // 10s - active phase
+    voting: 10000,      // 10s - active phase
+    finalized: 30000,   // 30s - just viewing
+    tracking: 60000,    // 60s - long-term tracking
+  }
+  
+  const base = baseIntervals[phase] || 15000
+  
+  // Exponential backoff if nothing changes (max 2 minutes)
+  if (noChangeCount > 5) {
+    return Math.min(base * 2, 120000)
+  }
+  if (noChangeCount > 10) {
+    return Math.min(base * 4, 120000)
+  }
+  
+  return base
+}
 
 // Storage keys
 const getTokenKey = (code: string) => `magic-${code.toUpperCase()}`
@@ -570,18 +596,66 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   startPolling: () => {
     if (pollInterval) return
     
-    pollInterval = setInterval(() => {
-      const { currentRoomCode } = get()
-      if (currentRoomCode) {
-        get().fetchGroup(currentRoomCode)
+    const schedulePoll = () => {
+      const { currentRoomCode, group } = get()
+      if (!currentRoomCode) return
+      
+      const interval = getPollingInterval(group?.phase || 'gathering', consecutiveNoChanges)
+      
+      pollInterval = setTimeout(async () => {
+        // Skip if tab is not visible (save reads!)
+        if (document.hidden) {
+          schedulePoll()
+          return
+        }
+        
+        const { currentRoomCode: code, group: oldGroup } = get()
+        if (!code) return
+        
+        const prevState = JSON.stringify(oldGroup)
+        await get().fetchGroup(code)
+        const newState = JSON.stringify(get().group)
+        
+        // Track if anything changed for exponential backoff
+        if (prevState === newState) {
+          consecutiveNoChanges++
+        } else {
+          consecutiveNoChanges = 0
+        }
+        
+        lastFetchTime = Date.now()
+        schedulePoll()
+      }, interval)
+    }
+    
+    // Initial fetch
+    const { currentRoomCode } = get()
+    if (currentRoomCode) {
+      get().fetchGroup(currentRoomCode)
+      lastFetchTime = Date.now()
+    }
+    
+    schedulePoll()
+    
+    // Fetch immediately when tab becomes visible (if stale)
+    const handleVisibility = () => {
+      if (!document.hidden && Date.now() - lastFetchTime > 5000) {
+        const { currentRoomCode } = get()
+        if (currentRoomCode) {
+          get().fetchGroup(currentRoomCode)
+          lastFetchTime = Date.now()
+          consecutiveNoChanges = 0
+        }
       }
-    }, 3000)
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
   },
 
   stopPolling: () => {
     if (pollInterval) {
-      clearInterval(pollInterval)
+      clearTimeout(pollInterval)
       pollInterval = null
     }
+    consecutiveNoChanges = 0
   },
 }))
