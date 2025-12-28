@@ -2,13 +2,16 @@
 
 /**
  * Bump version in KV to trigger client sync
- * This is the core of the Linear-style sync - no D1 writes for version!
+ * This is the core of Linear-style sync
+ * 
+ * KV only stores version - no full payload caching needed because:
+ * - If version matches: browser already has the data
+ * - If version differs: we fetch from D1 anyway
  */
 export async function bumpVersion(cache: KVNamespace, code: string) {
   const current = await cache.get(`version:${code}`)
   const next = (parseInt(current || '0', 10) + 1).toString()
   await cache.put(`version:${code}`, next)
-  await cache.delete(`group:${code}`) // Invalidate group cache
 }
 
 /**
@@ -25,4 +28,3 @@ export async function getVersion(cache: KVNamespace, code: string): Promise<numb
 export async function initVersion(cache: KVNamespace, code: string) {
   await cache.put(`version:${code}`, '1')
 }
-
