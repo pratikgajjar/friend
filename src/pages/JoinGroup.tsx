@@ -50,8 +50,8 @@ export function JoinGroup() {
       joinWithToken(token).then((result) => {
         if (result) {
           setTokenVerified(true)
-          // Redirect to room with encryption key in hash
-          navigate(`/room/${result.roomCode}#key=${encodeURIComponent(keyFromUrl)}`, { replace: true })
+          // Redirect to room with encryption key in hash (Base64URL - no encoding needed)
+          navigate(`/room/${result.roomCode}#key=${keyFromUrl}`, { replace: true })
         } else {
           setError('Invalid or expired magic link. Please join with your name.')
           setIsJoining(false)
