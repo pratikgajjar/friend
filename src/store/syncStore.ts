@@ -1,4 +1,14 @@
 import { create } from 'zustand'
+import {
+  generateKey,
+  encrypt,
+  decrypt,
+  storeRoomKey,
+  getRoomKey,
+  buildInviteUrl,
+  buildMagicLinkUrl,
+  getKeyFromUrl,
+} from '../lib/crypto'
 
 // API base URL - Pages Functions serve from same origin
 const API_BASE = '/api'
@@ -37,6 +47,7 @@ interface SyncState {
   currentUserName: string | null
   magicToken: string | null
   currentRoomCode: string | null
+  encryptionKey: string | null
   group: Group | null
   isLoading: boolean
   error: string | null
@@ -59,7 +70,9 @@ interface SyncState {
   
   // Magic link helpers
   getMagicLink: () => string | null
+  getInviteLink: () => string | null
   restoreFromStorage: (code: string) => boolean
+  setEncryptionKeyFromUrl: () => boolean
   getParticipantTokens: () => Promise<{ id: string; name: string; avatar: string; token: string }[] | null>
   
   // Polling for updates
@@ -70,15 +83,56 @@ interface SyncState {
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 // Storage keys
-const getTokenKey = (code: string) => `magic-${code}`
-const getUserKey = (code: string) => `user-${code}`
-const getNameKey = (code: string) => `name-${code}`
+const getTokenKey = (code: string) => `magic-${code.toUpperCase()}`
+const getUserKey = (code: string) => `user-${code.toUpperCase()}`
+const getNameKey = (code: string) => `name-${code.toUpperCase()}`
+
+// Encrypt sensitive data before sending to API
+async function encryptForApi(data: { name?: string; text?: string; hostName?: string }, key: string) {
+  const result: Record<string, string> = {}
+  if (data.name) result.name = await encrypt(data.name, key)
+  if (data.text) result.text = await encrypt(data.text, key)
+  if (data.hostName) result.hostName = await encrypt(data.hostName, key)
+  return result
+}
+
+// Decrypt group data from API
+async function decryptGroup(group: Group, key: string): Promise<Group> {
+  try {
+    const decryptedName = await decrypt(group.name, key)
+    
+    const decryptedParticipants = await Promise.all(
+      group.participants.map(async (p) => ({
+        ...p,
+        name: await decrypt(p.name, key).catch(() => p.name),
+      }))
+    )
+    
+    const decryptedChallenges = await Promise.all(
+      group.challenges.map(async (c) => ({
+        ...c,
+        text: await decrypt(c.text, key).catch(() => c.text),
+      }))
+    )
+    
+    return {
+      ...group,
+      name: decryptedName,
+      participants: decryptedParticipants,
+      challenges: decryptedChallenges,
+    }
+  } catch (error) {
+    console.warn('Decryption failed, returning raw data:', error)
+    return group
+  }
+}
 
 export const useSyncStore = create<SyncState>((set, get) => ({
   currentUserId: null,
   currentUserName: null,
   magicToken: null,
   currentRoomCode: null,
+  encryptionKey: null,
   group: null,
   isLoading: false,
   error: null,
@@ -87,29 +141,46 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     set({ isLoading: true, error: null })
     
     try {
+      // Generate encryption key for this group
+      const encryptionKey = await generateKey()
+      
+      // Encrypt sensitive data
+      const encryptedData = await encryptForApi({ name, hostName }, encryptionKey)
+      
       const res = await fetch(`${API_BASE}/groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, hostName, challengesPerPerson, turnstileToken }),
+        body: JSON.stringify({ 
+          name: encryptedData.name, 
+          hostName: encryptedData.hostName, 
+          challengesPerPerson, 
+          turnstileToken 
+        }),
       })
       
       if (!res.ok) throw new Error('Failed to create group')
       
       const data = await res.json()
       
-      // Save magic token and user info to localStorage
+      // Save encryption key, magic token, and user info
+      storeRoomKey(data.code, encryptionKey)
       localStorage.setItem(getTokenKey(data.code), data.token)
       localStorage.setItem(getUserKey(data.code), data.hostId)
-      localStorage.setItem(getNameKey(data.code), hostName)
+      localStorage.setItem(getNameKey(data.code), hostName) // Store plaintext locally
       
       const group: Group = {
         id: data.id,
         code: data.code,
-        name: data.name,
+        name: name, // Use plaintext for display
         phase: data.phase,
         challengesPerPerson: data.challengesPerPerson,
-        participants: data.participants,
-        challenges: data.challenges || [],
+        participants: [{
+          id: data.hostId,
+          name: hostName, // Plaintext
+          avatar: data.participants?.[0]?.avatar || '🙂',
+          isHost: true,
+        }],
+        challenges: [],
         createdAt: new Date().toISOString(),
       }
       
@@ -118,6 +189,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         currentUserName: hostName,
         magicToken: data.token,
         currentRoomCode: data.code,
+        encryptionKey,
         group,
         isLoading: false,
       })
@@ -135,13 +207,27 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     set({ isLoading: true, error: null })
     
     try {
+      // Get encryption key from URL or storage
+      let encryptionKey = getKeyFromUrl() || getRoomKey(code)
+      
+      if (!encryptionKey) {
+        set({ isLoading: false, error: 'Missing encryption key. Please use the full invite link.' })
+        return null
+      }
+      
+      // Store key if from URL
+      storeRoomKey(code, encryptionKey)
+      
       // Check if we have a stored token for this room
       const existingToken = localStorage.getItem(getTokenKey(code))
+      
+      // Encrypt name before sending
+      const encryptedName = await encrypt(name, encryptionKey)
       
       const res = await fetch(`${API_BASE}/groups/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, existingToken, turnstileToken }),
+        body: JSON.stringify({ name: encryptedName, existingToken, turnstileToken }),
       })
       
       if (!res.ok) {
@@ -157,21 +243,21 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       // Save magic token and user info
       localStorage.setItem(getTokenKey(code), data.token)
       localStorage.setItem(getUserKey(code), data.participantId)
-      localStorage.setItem(getNameKey(code), data.name || name)
+      localStorage.setItem(getNameKey(code), name) // Store plaintext locally
+      
+      set({
+        currentUserId: data.participantId,
+        currentUserName: name,
+        magicToken: data.token,
+        currentRoomCode: code,
+        encryptionKey,
+      })
       
       // Fetch full group data
       const group = await get().fetchGroup(code)
       
       if (group) {
-        set({
-          currentUserId: data.participantId,
-          currentUserName: data.name || name,
-          magicToken: data.token,
-          currentRoomCode: code,
-          group,
-          isLoading: false,
-        })
-        
+        set({ group, isLoading: false })
         get().startPolling()
       }
       
@@ -186,6 +272,14 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     set({ isLoading: true, error: null })
     
     try {
+      // Get encryption key from URL
+      const encryptionKey = getKeyFromUrl()
+      
+      if (!encryptionKey) {
+        set({ isLoading: false, error: 'Missing encryption key. Please use the full magic link.' })
+        return null
+      }
+      
       const res = await fetch(`${API_BASE}/auth/${token}`)
       
       if (!res.ok) {
@@ -195,20 +289,32 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       
       const data = await res.json()
       
+      // Store encryption key
+      storeRoomKey(data.roomCode, encryptionKey)
+      
+      // Decrypt name from API response
+      let decryptedName = data.name
+      try {
+        decryptedName = await decrypt(data.name, encryptionKey)
+      } catch {
+        // Name might not be encrypted (legacy)
+      }
+      
       // Save to localStorage
       localStorage.setItem(getTokenKey(data.roomCode), token)
       localStorage.setItem(getUserKey(data.roomCode), data.participantId)
-      localStorage.setItem(getNameKey(data.roomCode), data.name)
+      localStorage.setItem(getNameKey(data.roomCode), decryptedName)
       
       set({
         currentUserId: data.participantId,
-        currentUserName: data.name,
+        currentUserName: decryptedName,
         magicToken: token,
         currentRoomCode: data.roomCode,
+        encryptionKey,
         isLoading: false,
       })
       
-      return { roomCode: data.roomCode, name: data.name }
+      return { roomCode: data.roomCode, name: decryptedName }
     } catch (error) {
       set({ isLoading: false, error: (error as Error).message })
       return null
@@ -224,9 +330,19 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         throw new Error('Failed to fetch group')
       }
       
-      const group = await res.json()
-      set({ group })
-      return group
+      const rawGroup = await res.json()
+      
+      // Get encryption key
+      const encryptionKey = get().encryptionKey || getRoomKey(code)
+      
+      if (encryptionKey) {
+        const decryptedGroup = await decryptGroup(rawGroup, encryptionKey)
+        set({ group: decryptedGroup })
+        return decryptedGroup
+      }
+      
+      set({ group: rawGroup })
+      return rawGroup
     } catch (error) {
       console.error('Failed to fetch group:', error)
       return null
@@ -240,22 +356,29 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       currentUserName: null,
       magicToken: null,
       currentRoomCode: null,
+      encryptionKey: null,
       group: null,
     })
   },
 
   addChallenge: async ({ text, forParticipantId }) => {
-    const { currentRoomCode, currentUserId } = get()
+    const { currentRoomCode, currentUserId, encryptionKey } = get()
     if (!currentRoomCode || !currentUserId) return
     
     try {
+      // Encrypt challenge text
+      let encryptedText = text
+      if (encryptionKey) {
+        encryptedText = await encrypt(text, encryptionKey)
+      }
+      
       const res = await fetch(`${API_BASE}/groups/${currentRoomCode}/challenges`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'X-User-Id': currentUserId,
         },
-        body: JSON.stringify({ text, forParticipantId }),
+        body: JSON.stringify({ text: encryptedText, forParticipantId }),
       })
       
       if (!res.ok) throw new Error('Failed to add challenge')
@@ -327,9 +450,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     try {
       const res = await fetch(`${API_BASE}/challenges/${challengeId}`, {
         method: 'DELETE',
-        headers: {
-          'X-User-Id': currentUserId,
-        },
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) throw new Error('Failed to delete challenge')
@@ -341,19 +462,29 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   },
 
   getParticipantTokens: async () => {
-    const { currentRoomCode, currentUserId } = get()
+    const { currentRoomCode, currentUserId, encryptionKey } = get()
     if (!currentRoomCode || !currentUserId) return null
     
     try {
       const res = await fetch(`${API_BASE}/groups/${currentRoomCode}/tokens`, {
-        headers: {
-          'X-User-Id': currentUserId,
-        },
+        headers: { 'X-User-Id': currentUserId },
       })
       
       if (!res.ok) return null
       
       const data = await res.json()
+      
+      // Decrypt participant names
+      if (encryptionKey && data.participants) {
+        const decrypted = await Promise.all(
+          data.participants.map(async (p: any) => ({
+            ...p,
+            name: await decrypt(p.name, encryptionKey).catch(() => p.name),
+          }))
+        )
+        return decrypted
+      }
+      
       return data.participants
     } catch (error) {
       console.error('Failed to get participant tokens:', error)
@@ -384,20 +515,30 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   },
 
   getMagicLink: () => {
-    const { magicToken, currentRoomCode } = get()
+    const { magicToken, currentRoomCode, encryptionKey } = get()
     if (!magicToken || !currentRoomCode) return null
     
-    const baseUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : 'https://friend-challenge.pages.dev'
+    const key = encryptionKey || getRoomKey(currentRoomCode)
+    if (!key) return null
     
-    return `${baseUrl}/join/${currentRoomCode}?token=${magicToken}`
+    return buildMagicLinkUrl(magicToken, key)
+  },
+
+  getInviteLink: () => {
+    const { currentRoomCode, encryptionKey } = get()
+    if (!currentRoomCode) return null
+    
+    const key = encryptionKey || getRoomKey(currentRoomCode)
+    if (!key) return null
+    
+    return buildInviteUrl(currentRoomCode, key)
   },
 
   restoreFromStorage: (code) => {
     const token = localStorage.getItem(getTokenKey(code))
     const userId = localStorage.getItem(getUserKey(code))
     const userName = localStorage.getItem(getNameKey(code))
+    const encryptionKey = getRoomKey(code)
     
     if (token && userId) {
       set({
@@ -405,7 +546,22 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         currentUserName: userName,
         magicToken: token,
         currentRoomCode: code,
+        encryptionKey,
       })
+      return true
+    }
+    return false
+  },
+
+  setEncryptionKeyFromUrl: () => {
+    const key = getKeyFromUrl()
+    const { currentRoomCode } = get()
+    
+    if (key) {
+      set({ encryptionKey: key })
+      if (currentRoomCode) {
+        storeRoomKey(currentRoomCode, key)
+      }
       return true
     }
     return false
