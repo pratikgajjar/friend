@@ -2,12 +2,13 @@
 name = "friend-challenge-api"
 main = "worker/index.ts"
 compatibility_date = "2024-01-01"
+account_id = "f0aa4d234c08371026a0edc0efd3f44f"
 
 # D1 Database binding
 [[d1_databases]]
 binding = "DB"
 database_name = "friend-challenge-db"
-database_id = "local" # Will be replaced with actual ID after creation
+database_id = "25d78a30-bd84-4ade-8bd2-a2376aeed776"
 
 # For local development
 [dev]
@@ -16,6 +17,3 @@ port = 8787
 # Build settings for the worker
 [build]
 command = ""
-
-# For production, uncomment and set your account_id
-# account_id = "your-account-id"
