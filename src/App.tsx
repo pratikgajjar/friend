@@ -14,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/create" element={<CreateGroup />} />
+        <Route path="/join/auth/:token" element={<JoinGroup />} />
         <Route path="/join/:code" element={<JoinGroup />} />
         <Route path="/room/:code" element={<ChallengeBoard />} />
       </Routes>
