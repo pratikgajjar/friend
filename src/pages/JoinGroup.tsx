@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
@@ -8,7 +8,6 @@ export function JoinGroup() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
   const joinGroup = useSyncStore((s) => s.joinGroup)
-  const isLoading = useSyncStore((s) => s.isLoading)
   
   const [name, setName] = useState('')
   const [error, setError] = useState('')
@@ -26,7 +25,7 @@ export function JoinGroup() {
       if (group) {
         navigate(`/room/${code}`)
       } else {
-        setError('Could not find group. Make sure someone with the group is online, or check the code.')
+        setError('Group not found. Please check the code and try again.')
         setIsJoining(false)
       }
     } catch (err) {
@@ -54,10 +53,10 @@ export function JoinGroup() {
         </div>
 
         <div className={styles.syncNote}>
-          <span>🔄</span>
+          <span>🚀</span>
           <p>
-            Connecting via P2P... If the group creator is online, 
-            you'll sync automatically.
+            Enter your name to join. All data syncs in real-time 
+            with your friends.
           </p>
         </div>
 
