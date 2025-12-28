@@ -122,10 +122,10 @@ export function CreateGroup() {
         </div>
 
         <div className={styles.syncInfo}>
-          <span>🔄</span>
+          <span>🔐</span>
           <p>
-            <strong>P2P Sync:</strong> Data syncs directly between browsers. 
-            No server needed - as long as one person is online, others can join.
+            <strong>End-to-End Encrypted:</strong> All challenge data is encrypted on your device. 
+            The server never sees who's doing what—only you and your friends can read it.
           </p>
         </div>
       </motion.div>
