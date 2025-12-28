@@ -11,37 +11,50 @@ export function ChallengeBoard() {
   const group = useSyncStore((s) => s.group)
   const currentUserId = useSyncStore((s) => s.currentUserId)
   const advancePhase = useSyncStore((s) => s.advancePhase)
-  const joinGroup = useSyncStore((s) => s.joinGroup)
-  const currentRoomCode = useSyncStore((s) => s.currentRoomCode)
+  const fetchGroup = useSyncStore((s) => s.fetchGroup)
+  const startPolling = useSyncStore((s) => s.startPolling)
+  const stopPolling = useSyncStore((s) => s.stopPolling)
+  const isLoading = useSyncStore((s) => s.isLoading)
   
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [isReconnecting, setIsReconnecting] = useState(false)
 
-  // Reconnect if we have a stored user ID for this room
+  // Fetch group data and start polling
   useEffect(() => {
-    if (code && !group && !isReconnecting) {
+    if (code) {
+      // Restore user ID from localStorage
       const storedUserId = localStorage.getItem(`user-${code}`)
       if (storedUserId) {
-        setIsReconnecting(true)
-        // Rejoin with stored identity
-        joinGroup(code, 'Reconnecting...').then(() => {
-          setIsReconnecting(false)
-        })
+        useSyncStore.setState({ currentUserId: storedUserId, currentRoomCode: code })
       }
+      
+      fetchGroup(code)
+      startPolling()
     }
-  }, [code, group, joinGroup, isReconnecting])
+    
+    return () => {
+      stopPolling()
+    }
+  }, [code, fetchGroup, startPolling, stopPolling])
+
+  if (!group && isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.notFound}>
+          <span>🔄</span>
+          <h1>Loading...</h1>
+          <p>Fetching group data...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!group) {
     return (
       <div className={styles.container}>
         <div className={styles.notFound}>
-          <span>🔄</span>
-          <h1>{isReconnecting ? 'Reconnecting...' : 'Group not found'}</h1>
-          <p>
-            {isReconnecting 
-              ? 'Syncing with peers...' 
-              : 'No one is online with this group, or the code is invalid.'}
-          </p>
+          <span>🤔</span>
+          <h1>Group not found</h1>
+          <p>This group doesn't exist or the code is invalid.</p>
           <Link to="/">Go home</Link>
         </div>
       </div>
@@ -67,7 +80,7 @@ export function ChallengeBoard() {
         <div className={styles.headerRight}>
           <div className={styles.peerStatus}>
             <span className={styles.peerDot} />
-            <span>synced</span>
+            <span>live</span>
           </div>
           
           <button 
@@ -521,9 +534,9 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
 
         <div className={styles.syncStatus}>
           <span className={styles.peerDot} />
-          <span>Syncs across browser tabs</span>
+          <span>Live sync enabled</span>
           <span className={styles.syncHint}>
-            Open this link in another tab to test
+            Changes sync automatically every 3 seconds
           </span>
         </div>
       </motion.div>
