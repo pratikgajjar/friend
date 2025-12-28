@@ -54,11 +54,30 @@ export function Privacy() {
           <ul>
             <li>Your real name (only encrypted text)</li>
             <li>Your email address</li>
-            <li>Your IP address (Cloudflare handles requests; we don't log)</li>
-            <li>Any analytics or tracking</li>
-            <li>Any third-party integrations</li>
+            <li>Your IP address (we don't log individual requests)</li>
+            <li>Any user tracking or profiling</li>
             <li>Any advertising</li>
+            <li>Any cookies</li>
           </ul>
+        </section>
+
+        <section>
+          <h2>Privacy-Friendly Analytics</h2>
+          <p>
+            We use <a href="https://plausible.io" target="_blank" rel="noopener noreferrer">Plausible Analytics</a>, 
+            a privacy-focused, cookie-free analytics tool. Here's what makes it different:
+          </p>
+          <ul>
+            <li><strong>No cookies:</strong> Plausible doesn't use cookies or store anything in your browser</li>
+            <li><strong>No personal data:</strong> No IP addresses, device fingerprints, or user identifiers are collected</li>
+            <li><strong>Aggregate only:</strong> We see page views and visitor counts, not individual user journeys</li>
+            <li><strong>Not linked to challenge data:</strong> Analytics are completely separate from your encrypted challenges</li>
+            <li><strong>Self-hosted:</strong> We run our own Plausible instance for additional privacy</li>
+          </ul>
+          <p>
+            This helps us understand general usage patterns (e.g., "10 people visited today") without 
+            knowing who you are or what challenges you're working on.
+          </p>
         </section>
 
         <section>

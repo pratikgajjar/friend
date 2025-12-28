@@ -107,6 +107,15 @@ export function Terms() {
         </section>
 
         <section>
+          <h2>Analytics</h2>
+          <p>
+            We use privacy-friendly analytics (Plausible) to understand basic usage patterns like 
+            page views and visitor counts. This data is aggregate, anonymous, and completely 
+            separate from your encrypted challenge content. No cookies, no tracking, no personal data.
+          </p>
+        </section>
+
+        <section>
           <h2>The Spirit</h2>
           <p>
             This is a labor of love, built for friends who want to challenge each other to grow. 
