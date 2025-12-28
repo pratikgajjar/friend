@@ -1,6 +1,7 @@
 // POST /api/groups/:code/advance - HOST ONLY
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -36,6 +37,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   await context.env.DB.prepare(
     `UPDATE groups SET phase = ? WHERE id = ?`
   ).bind(nextPhase, group.id).run()
+
+  // Invalidate cache
+  await context.env.CACHE.delete(`group:${code}`)
 
   return Response.json({ phase: nextPhase })
 }

@@ -1,6 +1,7 @@
 // POST /api/groups/:code/challenges - AUTHENTICATED USERS ONLY
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -57,6 +58,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `INSERT INTO challenges (id, group_id, text, for_participant_id, suggested_by_id, votes, is_completed)
      VALUES (?, ?, ?, ?, ?, '[]', 0)`
   ).bind(id, group.id, text, forParticipantId, userId).run()
+
+  // Invalidate cache
+  await context.env.CACHE.delete(`group:${code}`)
 
   return Response.json({ 
     id, 

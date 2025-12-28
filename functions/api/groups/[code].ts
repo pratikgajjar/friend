@@ -1,11 +1,24 @@
-// GET /api/groups/:code - Get group by code
+// GET /api/groups/:code - Get group by code (with KV caching)
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
 }
+
+const CACHE_TTL = 60 // 60 seconds cache
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const code = (context.params.code as string).toUpperCase()
+  const cacheKey = `group:${code}`
   
+  // Try cache first (0 D1 reads!)
+  const cached = await context.env.CACHE.get(cacheKey, 'json')
+  if (cached) {
+    return Response.json(cached, {
+      headers: { 'X-Cache': 'HIT' }
+    })
+  }
+  
+  // Cache miss - query D1
   const group = await context.env.DB.prepare(
     `SELECT id, code, name, phase, challenges_per_person, deadline, created_at 
      FROM groups WHERE code = ?`
@@ -24,7 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
      FROM challenges WHERE group_id = ?`
   ).bind(group.id).all()
 
-  return Response.json({
+  const result = {
     id: group.id,
     code: group.code,
     name: group.name,
@@ -46,6 +59,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       votes: ch.votes ? JSON.parse(ch.votes) : [],
       isCompleted: ch.is_completed === 1,
     })),
+  }
+  
+  // Store in cache (don't await - fire and forget)
+  context.env.CACHE.put(cacheKey, JSON.stringify(result), { expirationTtl: CACHE_TTL })
+  
+  return Response.json(result, {
+    headers: { 'X-Cache': 'MISS' }
   })
 }
-
