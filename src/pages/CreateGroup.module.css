@@ -183,3 +183,28 @@
   color: var(--accent-gold);
 }
 
+.syncInfo {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(124, 181, 24, 0.1);
+  border: 1px solid rgba(124, 181, 24, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.syncInfo span {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.syncInfo p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.syncInfo strong {
+  color: var(--accent-sage);
+}
+

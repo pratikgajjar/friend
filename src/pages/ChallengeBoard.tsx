@@ -1,25 +1,48 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useGameStore, Challenge, Participant } from '../store/gameStore'
+import { useSyncStore, Challenge, Participant } from '../store/syncStore'
 import styles from './ChallengeBoard.module.css'
 
 export function ChallengeBoard() {
-  const { id } = useParams<{ id: string }>()
+  const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const group = useGameStore((s) => (id ? s.groups[id] : null))
-  const currentUserId = useGameStore((s) => s.currentUserId)
-  const advancePhase = useGameStore((s) => s.advancePhase)
   
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
+  const group = useSyncStore((s) => s.group)
+  const currentUserId = useSyncStore((s) => s.currentUserId)
+  const connectedPeers = useSyncStore((s) => s.connectedPeers)
+  const advancePhase = useSyncStore((s) => s.advancePhase)
+  const joinGroup = useSyncStore((s) => s.joinGroup)
+  const currentRoomCode = useSyncStore((s) => s.currentRoomCode)
+  
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [isReconnecting, setIsReconnecting] = useState(false)
+
+  // Reconnect if we have a stored user ID for this room
+  useEffect(() => {
+    if (code && !group && !isReconnecting) {
+      const storedUserId = localStorage.getItem(`user-${code}`)
+      if (storedUserId) {
+        setIsReconnecting(true)
+        // Rejoin with stored identity
+        joinGroup(code, 'Reconnecting...').then(() => {
+          setIsReconnecting(false)
+        })
+      }
+    }
+  }, [code, group, joinGroup, isReconnecting])
 
   if (!group) {
     return (
       <div className={styles.container}>
         <div className={styles.notFound}>
-          <span>🤔</span>
-          <h1>Group not found</h1>
+          <span>🔄</span>
+          <h1>{isReconnecting ? 'Reconnecting...' : 'Group not found'}</h1>
+          <p>
+            {isReconnecting 
+              ? 'Syncing with peers...' 
+              : 'No one is online with this group, or the code is invalid.'}
+          </p>
           <Link to="/">Go home</Link>
         </div>
       </div>
@@ -43,6 +66,11 @@ export function ChallengeBoard() {
         </div>
         
         <div className={styles.headerRight}>
+          <div className={styles.peerStatus}>
+            <span className={styles.peerDot} />
+            <span>{connectedPeers} online</span>
+          </div>
+          
           <button 
             className={styles.inviteBtn}
             onClick={() => setShowInviteModal(true)}
@@ -53,7 +81,7 @@ export function ChallengeBoard() {
           {isHost && group.phase !== 'tracking' && (
             <button 
               className={styles.advanceBtn}
-              onClick={() => id && advancePhase(id)}
+              onClick={advancePhase}
             >
               {getNextPhaseLabel(group.phase)} →
             </button>
@@ -73,8 +101,6 @@ export function ChallengeBoard() {
           <BoardPhase 
             group={group}
             currentUserId={currentUserId}
-            selectedParticipant={selectedParticipant}
-            setSelectedParticipant={setSelectedParticipant}
             phase={group.phase}
           />
         )}
@@ -186,19 +212,15 @@ function GatheringPhase({ group, onInvite }: { group: any; onInvite: () => void 
 function BoardPhase({ 
   group, 
   currentUserId, 
-  selectedParticipant, 
-  setSelectedParticipant,
   phase 
 }: { 
   group: any
   currentUserId: string | null
-  selectedParticipant: string | null
-  setSelectedParticipant: (id: string | null) => void
   phase: 'suggesting' | 'voting'
 }) {
-  const addChallenge = useGameStore((s) => s.addChallenge)
-  const voteChallenge = useGameStore((s) => s.voteChallenge)
-  const removeVote = useGameStore((s) => s.removeVote)
+  const addChallenge = useSyncStore((s) => s.addChallenge)
+  const voteChallenge = useSyncStore((s) => s.voteChallenge)
+  const removeVote = useSyncStore((s) => s.removeVote)
   
   const [newChallenge, setNewChallenge] = useState('')
   const [showAddForm, setShowAddForm] = useState<string | null>(null)
@@ -206,7 +228,7 @@ function BoardPhase({
   const handleAddChallenge = (forParticipantId: string) => {
     if (!newChallenge.trim() || !currentUserId) return
     
-    addChallenge(group.id, {
+    addChallenge({
       text: newChallenge.trim(),
       forParticipantId,
       suggestedByParticipantId: currentUserId,
@@ -221,9 +243,9 @@ function BoardPhase({
     
     const challenge = group.challenges.find((c: Challenge) => c.id === challengeId)
     if (challenge?.votes.includes(currentUserId)) {
-      removeVote(group.id, challengeId, currentUserId)
+      removeVote(challengeId)
     } else {
-      voteChallenge(group.id, challengeId, currentUserId)
+      voteChallenge(challengeId)
     }
   }
 
@@ -286,7 +308,7 @@ function BoardPhase({
                           <p className={styles.challengeText}>{challenge.text}</p>
                           <div className={styles.challengeMeta}>
                             <span className={styles.suggestedBy}>
-                              by {suggestedBy?.avatar}
+                              by {suggestedBy?.avatar || '?'}
                             </span>
                             
                             {phase === 'voting' && (
@@ -357,8 +379,7 @@ function BoardPhase({
 }
 
 function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: string | null }) {
-  const toggleChallengeComplete = useGameStore((s) => s.toggleChallengeComplete)
-  const setDeadline = useGameStore((s) => s.setDeadline)
+  const toggleChallengeComplete = useSyncStore((s) => s.toggleChallengeComplete)
 
   // Get finalized challenges sorted by votes for each participant
   const getFinalizedChallenges = (participantId: string) => {
@@ -425,7 +446,7 @@ function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: st
                   >
                     <button
                       className={styles.checkBtn}
-                      onClick={() => isMe && toggleChallengeComplete(group.id, challenge.id)}
+                      onClick={() => isMe && toggleChallengeComplete(challenge.id)}
                       disabled={!isMe}
                     >
                       {challenge.isCompleted ? '✓' : (index + 1)}
@@ -435,6 +456,10 @@ function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: st
                     </span>
                   </div>
                 ))}
+
+                {challenges.length === 0 && (
+                  <p className={styles.noChallenges}>No challenges yet</p>
+                )}
               </div>
             </motion.div>
           )
@@ -446,6 +471,7 @@ function TrackingPhase({ group, currentUserId }: { group: any; currentUserId: st
 
 function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
+  const connectedPeers = useSyncStore((s) => s.connectedPeers)
   
   const inviteUrl = `${window.location.origin}/join/${code}`
   
@@ -476,7 +502,7 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
         <p>Share this code or link with your friends</p>
 
         <div className={styles.inviteCode}>
-          <span className={styles.codeLabel}>Code</span>
+          <span className={styles.codeLabel}>Room Code</span>
           <span className={styles.codeValue}>{code}</span>
         </div>
 
@@ -494,8 +520,15 @@ function InviteModal({ code, onClose }: { code: string; onClose: () => void }) {
             {copied ? '✓ Copied!' : 'Copy'}
           </button>
         </div>
+
+        <div className={styles.syncStatus}>
+          <span className={styles.peerDot} />
+          <span>{connectedPeers} peer{connectedPeers !== 1 ? 's' : ''} connected</span>
+          <span className={styles.syncHint}>
+            Friends can join when you're online
+          </span>
+        </div>
       </motion.div>
     </motion.div>
   )
 }
-

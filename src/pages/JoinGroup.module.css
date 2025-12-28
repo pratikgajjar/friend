@@ -55,6 +55,28 @@
 
 .header strong {
   color: var(--accent-fire);
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.syncNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: rgba(124, 181, 24, 0.1);
+  border: 1px solid rgba(124, 181, 24, 0.2);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xl);
+}
+
+.syncNote span {
+  font-size: 1.2rem;
+}
+
+.syncNote p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
 .participants {
