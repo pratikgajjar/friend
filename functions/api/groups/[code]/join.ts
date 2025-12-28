@@ -58,7 +58,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: 'CAPTCHA verification required' }, { status: 400 })
   }
   
-  const secretKey = context.env.TURNSTILE_SECRET_KEY || '***REMOVED***'
+  const secretKey = context.env.TURNSTILE_SECRET_KEY
+  if (!secretKey) {
+    return Response.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
   const isValid = await verifyTurnstile(turnstileToken, secretKey)
   
   if (!isValid) {
