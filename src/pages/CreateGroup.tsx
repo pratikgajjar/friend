@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
@@ -13,27 +13,6 @@ export function CreateGroup() {
   
   const [challengesPerPerson, setChallengesPerPerson] = useState(6)
   const [isCreating, setIsCreating] = useState(false)
-  const [canSubmit, setCanSubmit] = useState(false)
-
-  // Check form validity on any input
-  useEffect(() => {
-    const checkValidity = () => {
-      const groupName = groupNameRef.current?.value || ''
-      const hostName = hostNameRef.current?.value || ''
-      setCanSubmit(groupName.trim().length > 0 && hostName.trim().length > 0)
-    }
-
-    const groupInput = groupNameRef.current
-    const hostInput = hostNameRef.current
-
-    groupInput?.addEventListener('input', checkValidity)
-    hostInput?.addEventListener('input', checkValidity)
-
-    return () => {
-      groupInput?.removeEventListener('input', checkValidity)
-      hostInput?.removeEventListener('input', checkValidity)
-    }
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

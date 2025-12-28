@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSyncStore, Challenge, Participant } from '../store/syncStore'
 import styles from './ChallengeBoard.module.css'
 
 export function ChallengeBoard() {
   const { code } = useParams<{ code: string }>()
-  const navigate = useNavigate()
   
   const group = useSyncStore((s) => s.group)
   const currentUserId = useSyncStore((s) => s.currentUserId)

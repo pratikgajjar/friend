@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
-// API base URL - uses Vite proxy in dev, direct URL in prod
-const API_BASE = import.meta.env.DEV ? '/api' : import.meta.env.VITE_API_URL || '/api'
+// API base URL - Pages Functions serve from same origin
+const API_BASE = '/api'
 
 // Types
 export interface Challenge {
