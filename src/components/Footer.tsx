@@ -34,6 +34,10 @@ export function Footer() {
         <span className={styles.divider}>·</span>
         <Link to="/terms">Terms</Link>
         <span className={styles.divider}>·</span>
+        <a href="https://github.com/pratikgajjar/friend" target="_blank" rel="noopener noreferrer">
+          Source Code
+        </a>
+        <span className={styles.divider}>·</span>
         <span className={styles.encrypted}>🔐 End-to-End Encrypted</span>
       </div>
       
