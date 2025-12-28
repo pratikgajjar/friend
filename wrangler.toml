@@ -1,8 +1,7 @@
-# Cloudflare Workers + D1 Configuration
-name = "friend-challenge-api"
-main = "worker/index.ts"
+# Cloudflare Pages Configuration
+name = "friend-challenge"
 compatibility_date = "2024-01-01"
-account_id = "f0aa4d234c08371026a0edc0efd3f44f"
+pages_build_output_dir = "dist"
 
 # D1 Database binding
 [[d1_databases]]
@@ -18,7 +17,3 @@ id = "569d0060c43a489e9e8382f51f096067"
 # For local development
 [dev]
 port = 8787
-
-# Build settings for the worker
-[build]
-command = ""
