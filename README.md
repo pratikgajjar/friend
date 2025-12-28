@@ -1,66 +1,72 @@
 # 🤙 Year of the Challenge
 
-**The tyranny of friendship** - A web app to make New Year's resolutions for each other.
+A collaborative challenge-setting app inspired by [Moxie Marlinspike's Year of the Challenge](https://moxie.org/stories/year-of-the-challenge/).
 
-Inspired by [Moxie Marlinspike's Year of the Challenge](https://moxie.org/stories/year-of-the-challenge/)
+## Stack
 
-> "Instead of making New Year's resolutions for ourselves, we decided to make resolutions for each other."
+- **Frontend**: React + Vite + TypeScript + Framer Motion
+- **Backend**: Cloudflare Workers + Hono
+- **Database**: Cloudflare D1 (SQLite at the edge)
 
-## Features
-
-- **Create Challenge Groups** - Gather your friends in one place
-- **Suggest Challenges** - Write challenges for each other (not yourself!)
-- **Vote on Challenges** - Democratic selection of the best challenges
-- **Track Progress** - Keep each other accountable throughout the year
-
-## Challenge Categories
-
-1. 🌱 **Growth** - Something they'd love to do but need accountability for
-2. ✨ **Hidden Potential** - Something they'd do amazingly but would never consider
-3. 🎪 **Comfort Zone** - Push them where they wouldn't go themselves
-4. 🔧 **Neglected** - Something they actually need to do but keep avoiding
-5. 🎁 **Shared Joy** - Something everyone will enjoy the fruits of
-
-## Getting Started
-
-### Development
+## Local Development
 
 ```bash
 # Install dependencies
 npm install
 
-# Start dev server
-npm run dev
+# Initialize local D1 database
+npx wrangler d1 execute friend-challenge-db --local --file=./worker/schema.sql
+
+# Run both frontend and API
+npm run dev:all
+
+# Or run separately:
+npm run dev      # Frontend on :5173
+npm run dev:api  # API on :8787
 ```
 
-### Build & Deploy to Cloudflare Pages
+## Deploy to Cloudflare (< 10 seconds)
 
 ```bash
-# Build the app
-npm run build
+# 1. Create D1 database (first time only)
+npx wrangler d1 create friend-challenge-db
+# Copy the database_id to wrangler.toml
 
-# Deploy to Cloudflare Pages
-npm run deploy
+# 2. Run migrations on production
+npx wrangler d1 execute friend-challenge-db --file=./worker/schema.sql
+
+# 3. Deploy the API
+npx wrangler deploy
+
+# 4. Build and deploy frontend
+npm run build
+npx wrangler pages deploy dist
 ```
 
-Or connect your GitHub repo to Cloudflare Pages for automatic deployments.
+## Environment Variables
 
-## Tech Stack
+For production, set `VITE_API_URL` to your deployed worker URL:
 
-- **Frontend**: React + TypeScript + Vite
-- **Styling**: CSS Modules with CSS Variables
-- **Animations**: Framer Motion
-- **State**: Zustand with localStorage persistence
-- **Deployment**: Cloudflare Pages
+```bash
+VITE_API_URL=https://friend-challenge-api.your-subdomain.workers.dev
+```
 
-## Future Enhancements
+## How It Works
 
-For real-time multi-user sync, you can add:
-- Cloudflare D1 (SQLite) for persistent storage
-- Cloudflare Durable Objects for real-time updates
-- Authentication with Cloudflare Access or a provider
+1. **Gather Phase**: Create a group, invite friends with a room code
+2. **Suggest Phase**: Everyone suggests challenges for each other
+3. **Vote Phase**: Vote on which challenges to finalize
+4. **Track Phase**: Track challenge completion throughout the year
 
-## License
+## API Endpoints
 
-MIT - Build something fun with your friends!
-
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/groups` | Create new group |
+| GET | `/api/groups/:code` | Get group by code |
+| POST | `/api/groups/:code/join` | Join a group |
+| POST | `/api/groups/:code/advance` | Advance game phase |
+| POST | `/api/groups/:code/challenges` | Add challenge |
+| POST | `/api/challenges/:id/vote` | Vote on challenge |
+| DELETE | `/api/challenges/:id/vote` | Remove vote |
+| POST | `/api/challenges/:id/toggle` | Toggle completion |
