@@ -255,6 +255,13 @@
   font-weight: 500;
 }
 
+.badges {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .hostBadge {
   font-family: var(--font-mono);
   font-size: 0.65rem;
@@ -263,6 +270,22 @@
   color: var(--bg-primary);
   border-radius: var(--radius-sm);
   text-transform: uppercase;
+}
+
+.youBadge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--accent-fire);
+  color: white;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.isCurrentUser {
+  border-color: var(--accent-fire);
+  box-shadow: 0 0 0 2px rgba(232, 93, 4, 0.2);
 }
 
 .addParticipant {
@@ -392,6 +415,15 @@
 .suggestedBy {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.suggestedByMe {
+  border-left: 2px solid var(--accent-fire);
+}
+
+.suggestedByMeText {
+  color: var(--accent-fire);
+  font-weight: 500;
 }
 
 .voteBtn {
