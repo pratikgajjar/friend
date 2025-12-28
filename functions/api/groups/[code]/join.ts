@@ -3,7 +3,6 @@ import { bumpVersion } from '../../../lib/cache'
 
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
   TURNSTILE_SECRET_KEY: string
 }
 
@@ -76,7 +75,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
      VALUES (?, ?, ?, ?, 0, ?)`
   ).bind(participantId, group.id, name, avatar, token).run()
 
-  await bumpVersion(context.env.CACHE, code)
+  await bumpVersion(context.env.DB, code)
 
   return Response.json({ 
     participantId, 

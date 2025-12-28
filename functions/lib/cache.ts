@@ -1,30 +1,22 @@
-// Shared cache utilities for all API endpoints
+// Shared utilities for version management
+// Version stored in D1 for strong consistency (no KV propagation delay)
 
 /**
- * Bump version in KV to trigger client sync
- * This is the core of Linear-style sync
- * 
- * KV only stores version - no full payload caching needed because:
- * - If version matches: browser already has the data
- * - If version differs: we fetch from D1 anyway
+ * Bump version in D1 - strongly consistent, instant for all users
  */
-export async function bumpVersion(cache: KVNamespace, code: string) {
-  const current = await cache.get(`version:${code}`)
-  const next = (parseInt(current || '0', 10) + 1).toString()
-  await cache.put(`version:${code}`, next)
+export async function bumpVersion(db: D1Database, code: string): Promise<void> {
+  await db.prepare(
+    `UPDATE groups SET version = version + 1 WHERE code = ?`
+  ).bind(code).run()
 }
 
 /**
- * Get current version from KV
+ * Get version from D1 - 1 read, 1 row (minimal cost)
  */
-export async function getVersion(cache: KVNamespace, code: string): Promise<number> {
-  const version = await cache.get(`version:${code}`)
-  return version ? parseInt(version, 10) : 0
-}
-
-/**
- * Set initial version for a new group
- */
-export async function initVersion(cache: KVNamespace, code: string) {
-  await cache.put(`version:${code}`, '1')
+export async function getVersion(db: D1Database, code: string): Promise<number> {
+  const result = await db.prepare(
+    `SELECT version FROM groups WHERE code = ?`
+  ).bind(code).first() as { version: number } | null
+  
+  return result?.version ?? 0
 }
