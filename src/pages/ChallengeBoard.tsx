@@ -708,10 +708,10 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
   }, [getParticipantTokens])
 
   const handleCopy = async (id: string, token: string) => {
-    // Include encryption key in magic link
+    // Include encryption key in magic link (Base64URL - no encoding needed)
     let magicLink = `${window.location.origin}/join/auth/${token}`
     if (encryptionKey) {
-      magicLink += `#key=${encodeURIComponent(encryptionKey)}`
+      magicLink += `#key=${encryptionKey}`
     }
     await navigator.clipboard.writeText(magicLink)
     setCopiedId(id)

@@ -18,14 +18,14 @@ export async function generateKey(): Promise<string> {
     ['encrypt', 'decrypt']
   );
   const exported = await crypto.subtle.exportKey('raw', key);
-  return arrayBufferToBase64(exported);
+  return arrayBufferToBase64Url(exported);
 }
 
 /**
- * Import a base64-encoded key
+ * Import a base64url-encoded key
  */
-async function importKey(keyBase64: string): Promise<CryptoKey> {
-  const keyBuffer = base64ToArrayBuffer(keyBase64);
+async function importKey(keyBase64Url: string): Promise<CryptoKey> {
+  const keyBuffer = base64UrlToArrayBuffer(keyBase64Url);
   return crypto.subtle.importKey(
     'raw',
     keyBuffer,
@@ -37,10 +37,10 @@ async function importKey(keyBase64: string): Promise<CryptoKey> {
 
 /**
  * Encrypt plaintext using AES-GCM
- * Returns: base64(iv + ciphertext + authTag)
+ * Returns: base64url(iv + ciphertext + authTag)
  */
-export async function encrypt(plaintext: string, keyBase64: string): Promise<string> {
-  const key = await importKey(keyBase64);
+export async function encrypt(plaintext: string, keyBase64Url: string): Promise<string> {
+  const key = await importKey(keyBase64Url);
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const encoder = new TextEncoder();
   
@@ -55,15 +55,15 @@ export async function encrypt(plaintext: string, keyBase64: string): Promise<str
   combined.set(iv, 0);
   combined.set(new Uint8Array(ciphertext), iv.length);
   
-  return arrayBufferToBase64(combined.buffer);
+  return arrayBufferToBase64Url(combined.buffer);
 }
 
 /**
  * Decrypt ciphertext using AES-GCM
  */
-export async function decrypt(encryptedBase64: string, keyBase64: string): Promise<string> {
-  const key = await importKey(keyBase64);
-  const combined = new Uint8Array(base64ToArrayBuffer(encryptedBase64));
+export async function decrypt(encryptedBase64Url: string, keyBase64Url: string): Promise<string> {
+  const key = await importKey(keyBase64Url);
+  const combined = new Uint8Array(base64UrlToArrayBuffer(encryptedBase64Url));
   
   const iv = combined.slice(0, IV_LENGTH);
   const ciphertext = combined.slice(IV_LENGTH);
@@ -145,33 +145,47 @@ export function setKeyInUrl(key: string): void {
 }
 
 /**
- * Build invite URL with encryption key
+ * Build invite URL with encryption key (Base64URL - no encoding needed)
  */
 export function buildInviteUrl(code: string, key: string): string {
-  return `${window.location.origin}/join/${code}#key=${encodeURIComponent(key)}`;
+  return `${window.location.origin}/join/${code}#key=${key}`;
 }
 
 /**
- * Build magic link URL with encryption key
+ * Build magic link URL with encryption key (Base64URL - no encoding needed)
  */
 export function buildMagicLinkUrl(token: string, key: string): string {
-  return `${window.location.origin}/join/auth/${token}#key=${encodeURIComponent(key)}`;
+  return `${window.location.origin}/join/auth/${token}#key=${key}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Helpers - Using Base64URL (URL-safe, no padding)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary);
+  // Convert to Base64, then to Base64URL (replace + with -, / with _, remove =)
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
+function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+  // Convert Base64URL back to Base64
+  let base64 = base64url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  
+  // Add padding if needed
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
