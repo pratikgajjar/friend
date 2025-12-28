@@ -59,7 +59,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ).bind(hostId, id, hostName, avatar, token),
   ])
 
-  const result = { 
+  // Set initial version in KV (no full payload caching needed)
+  await initVersion(context.env.CACHE, code)
+
+  return Response.json({ 
     id, 
     code, 
     name, 
@@ -70,14 +73,5 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     token,
     participants: [{ id: hostId, name: hostName, avatar, isHost: true }],
     challenges: [],
-  }
-  
-  // Cache the new group and set initial version in KV
-  await context.env.CACHE.put(`group:${code}`, JSON.stringify({
-    ...result,
-    createdAt: new Date().toISOString(),
-  }), { expirationTtl: 60 })
-  await initVersion(context.env.CACHE, code)
-
-  return Response.json(result)
+  })
 }
