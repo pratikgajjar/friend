@@ -1,4 +1,6 @@
 // POST /api/groups/:code/advance - HOST ONLY
+import { bumpVersion } from '../../../lib/cache'
+
 interface Env {
   DB: D1Database
   CACHE: KVNamespace
@@ -8,7 +10,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const code = (context.params.code as string).toUpperCase()
   const userId = context.request.headers.get('X-User-Id')
   
-  // Require authentication
   if (!userId) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -21,7 +22,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: 'Group not found' }, { status: 404 })
   }
 
-  // Verify user is host
   const participant = await context.env.DB.prepare(
     'SELECT is_host FROM participants WHERE id = ? AND group_id = ?'
   ).bind(userId, group.id).first() as { is_host: number } | null
@@ -38,8 +38,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `UPDATE groups SET phase = ? WHERE id = ?`
   ).bind(nextPhase, group.id).run()
 
-  // Invalidate cache
-  await context.env.CACHE.delete(`group:${code}`)
+  await bumpVersion(context.env.CACHE, code)
 
   return Response.json({ phase: nextPhase })
 }

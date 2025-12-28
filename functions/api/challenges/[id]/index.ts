@@ -1,4 +1,6 @@
 // DELETE /api/challenges/:id - Delete a challenge (creator only)
+import { bumpVersion } from '../../../lib/cache'
+
 interface Env {
   DB: D1Database
   CACHE: KVNamespace
@@ -12,7 +14,6 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
   
-  // Get challenge with group code
   const challenge = await context.env.DB.prepare(
     `SELECT c.suggested_by_id, g.code 
      FROM challenges c 
@@ -24,18 +25,15 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     return Response.json({ error: 'Challenge not found' }, { status: 404 })
   }
   
-  // Check if user is the creator
   if (challenge.suggested_by_id !== userId) {
     return Response.json({ error: 'Only the creator can delete this challenge' }, { status: 403 })
   }
   
-  // Delete the challenge
   await context.env.DB.prepare(
     'DELETE FROM challenges WHERE id = ?'
   ).bind(challengeId).run()
   
-  // Invalidate cache
-  await context.env.CACHE.delete(`group:${challenge.code}`)
+  await bumpVersion(context.env.CACHE, challenge.code)
   
   return Response.json({ success: true })
 }
