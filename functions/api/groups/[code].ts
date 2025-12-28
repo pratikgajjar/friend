@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const group = await context.env.DB.prepare(
     `SELECT id, code, name, phase, challenges_per_person, deadline, created_at 
      FROM groups WHERE code = ?`
-  ).bind(code).first()
+  ).bind(code).first() as any
   
   if (!group) {
     return Response.json({ error: 'Group not found' }, { status: 404 })
@@ -37,6 +37,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
      FROM challenges WHERE group_id = ?`
   ).bind(group.id).all()
 
+  // Get version from KV (not D1)
+  const kvVersion = await context.env.CACHE.get(`version:${code}`)
+  const version = kvVersion ? parseInt(kvVersion, 10) : 1
+
   const result = {
     id: group.id,
     code: group.code,
@@ -44,6 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     phase: group.phase,
     challengesPerPerson: group.challenges_per_person,
     deadline: group.deadline,
+    version,
     createdAt: group.created_at,
     participants: participants.results.map((p: any) => ({
       id: p.id,
@@ -61,7 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     })),
   }
   
-  // Store in cache (don't await - fire and forget)
+  // Store in cache
   context.env.CACHE.put(cacheKey, JSON.stringify(result), { expirationTtl: CACHE_TTL })
   
   return Response.json(result, {

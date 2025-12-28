@@ -11,6 +11,7 @@ CREATE TABLE groups (
   phase TEXT DEFAULT 'gathering',
   challenges_per_person INTEGER DEFAULT 6,
   deadline TEXT,
+  version INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

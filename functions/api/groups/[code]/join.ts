@@ -1,4 +1,6 @@
 // POST /api/groups/:code/join
+import { bumpVersion } from '../../../lib/cache'
+
 interface Env {
   DB: D1Database
   CACHE: KVNamespace
@@ -30,13 +32,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   
   const group = await context.env.DB.prepare(
     `SELECT id, phase FROM groups WHERE code = ?`
-  ).bind(code).first()
+  ).bind(code).first() as { id: string } | null
   
   if (!group) {
     return Response.json({ error: 'Group not found' }, { status: 404 })
   }
 
-  // Check if rejoining with magic token (no Turnstile needed for existing users)
+  // Check if rejoining with magic token
   if (existingToken) {
     const existing = await context.env.DB.prepare(
       `SELECT id, name FROM participants WHERE token = ? AND group_id = ?`
@@ -52,7 +54,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
   }
 
-  // New user joining - verify Turnstile token
+  // New user - verify Turnstile
   if (!turnstileToken) {
     return Response.json({ error: 'CAPTCHA verification required' }, { status: 400 })
   }
@@ -64,9 +66,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: 'CAPTCHA verification failed' }, { status: 403 })
   }
 
-  // Add new participant
   const participantId = crypto.randomUUID().slice(0, 8)
-  const token = crypto.randomUUID() // New magic link token
+  const token = crypto.randomUUID()
   const avatars = ['🔥', '⚡', '🌟', '🎯', '🚀', '💎', '🎪', '🌈', '🦊', '🐉', '🎸', '🎭']
   const avatar = avatars[Math.floor(Math.random() * avatars.length)]
   
@@ -75,12 +76,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
      VALUES (?, ?, ?, ?, 0, ?)`
   ).bind(participantId, group.id, name, avatar, token).run()
 
-  // Invalidate cache (new participant added)
-  await context.env.CACHE.delete(`group:${code}`)
+  await bumpVersion(context.env.CACHE, code)
 
   return Response.json({ 
     participantId, 
-    token, // Return token for magic link
+    token,
     rejoined: false 
   })
 }

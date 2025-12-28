@@ -1,4 +1,6 @@
 // POST /api/groups - Create a new group
+import { initVersion } from '../../lib/cache'
+
 interface Env {
   DB: D1Database
   CACHE: KVNamespace
@@ -63,17 +65,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     name, 
     phase: 'gathering',
     challengesPerPerson,
+    version: 1,
     hostId,
-    token, // Return token for magic link
+    token,
     participants: [{ id: hostId, name: hostName, avatar, isHost: true }],
     challenges: [],
   }
   
-  // Cache the new group (saves D1 read on first fetch)
+  // Cache the new group and set initial version in KV
   await context.env.CACHE.put(`group:${code}`, JSON.stringify({
     ...result,
     createdAt: new Date().toISOString(),
   }), { expirationTtl: 60 })
+  await initVersion(context.env.CACHE, code)
 
   return Response.json(result)
 }

@@ -38,6 +38,7 @@ export interface Group {
   participants: Participant[]
   challenges: Challenge[]
   challengesPerPerson: number
+  version: number
   deadline?: string
   createdAt: string
 }
@@ -81,32 +82,11 @@ interface SyncState {
 }
 
 let pollInterval: ReturnType<typeof setTimeout> | null = null
-let lastFetchTime = 0
-let consecutiveNoChanges = 0
+let localVersion = 0
+let visibilityHandler: (() => void) | null = null
 
-// Smart polling intervals based on phase and activity
-const getPollingInterval = (phase: string, noChangeCount: number): number => {
-  // Base intervals by phase (in ms)
-  const baseIntervals: Record<string, number> = {
-    gathering: 15000,   // 15s - waiting for friends
-    suggesting: 10000,  // 10s - active phase
-    voting: 10000,      // 10s - active phase
-    finalized: 30000,   // 30s - just viewing
-    tracking: 60000,    // 60s - long-term tracking
-  }
-  
-  const base = baseIntervals[phase] || 15000
-  
-  // Exponential backoff if nothing changes (max 2 minutes)
-  if (noChangeCount > 5) {
-    return Math.min(base * 2, 120000)
-  }
-  if (noChangeCount > 10) {
-    return Math.min(base * 4, 120000)
-  }
-  
-  return base
-}
+// Fixed 3s polling interval (Linear-style sync makes this cheap)
+const POLL_INTERVAL = 3000
 
 // Storage keys
 const getTokenKey = (code: string) => `magic-${code.toUpperCase()}`
@@ -200,6 +180,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         name: name, // Use plaintext for display
         phase: data.phase,
         challengesPerPerson: data.challengesPerPerson,
+        version: data.version || 1,
         participants: [{
           id: data.hostId,
           name: hostName, // Plaintext
@@ -209,6 +190,9 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         challenges: [],
         createdAt: new Date().toISOString(),
       }
+      
+      // Set local version for delta sync
+      localVersion = group.version
       
       set({
         currentUserId: data.hostId,
@@ -596,66 +580,65 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   startPolling: () => {
     if (pollInterval) return
     
-    const schedulePoll = () => {
-      const { currentRoomCode, group } = get()
-      if (!currentRoomCode) return
+    // Linear-style sync: check version first, fetch only if changed
+    const checkAndSync = async () => {
+      const { currentRoomCode: code } = get()
+      if (!code) return
       
-      const interval = getPollingInterval(group?.phase || 'gathering', consecutiveNoChanges)
+      // Skip if tab is not visible
+      if (document.hidden) return
       
-      pollInterval = setTimeout(async () => {
-        // Skip if tab is not visible (save reads!)
-        if (document.hidden) {
-          schedulePoll()
-          return
+      try {
+        // Step 1: Check version (very cheap - 1 KV read or 1 D1 read)
+        const versionRes = await fetch(`${API_BASE}/groups/${code}/version`)
+        if (!versionRes.ok) return
+        
+        const { version: serverVersion } = await versionRes.json()
+        
+        // Step 2: Only fetch full data if version changed
+        if (serverVersion !== localVersion) {
+          console.log(`[Sync] Version changed: ${localVersion} → ${serverVersion}`)
+          await get().fetchGroup(code)
+          localVersion = serverVersion
         }
-        
-        const { currentRoomCode: code, group: oldGroup } = get()
-        if (!code) return
-        
-        const prevState = JSON.stringify(oldGroup)
-        await get().fetchGroup(code)
-        const newState = JSON.stringify(get().group)
-        
-        // Track if anything changed for exponential backoff
-        if (prevState === newState) {
-          consecutiveNoChanges++
-        } else {
-          consecutiveNoChanges = 0
-        }
-        
-        lastFetchTime = Date.now()
-        schedulePoll()
-      }, interval)
+      } catch (error) {
+        console.error('[Sync] Error checking version:', error)
+      }
     }
     
     // Initial fetch
     const { currentRoomCode } = get()
     if (currentRoomCode) {
-      get().fetchGroup(currentRoomCode)
-      lastFetchTime = Date.now()
+      get().fetchGroup(currentRoomCode).then(() => {
+        // Set initial local version from fetched group
+        const fetchedGroup = get().group
+        if (fetchedGroup?.version) {
+          localVersion = fetchedGroup.version
+        }
+      })
     }
     
-    schedulePoll()
+    // Poll every 3 seconds (cheap with version checking)
+    pollInterval = setInterval(checkAndSync, POLL_INTERVAL)
     
-    // Fetch immediately when tab becomes visible (if stale)
-    const handleVisibility = () => {
-      if (!document.hidden && Date.now() - lastFetchTime > 5000) {
-        const { currentRoomCode } = get()
-        if (currentRoomCode) {
-          get().fetchGroup(currentRoomCode)
-          lastFetchTime = Date.now()
-          consecutiveNoChanges = 0
-        }
+    // Fetch immediately when tab becomes visible
+    visibilityHandler = () => {
+      if (!document.hidden) {
+        checkAndSync()
       }
     }
-    document.addEventListener('visibilitychange', handleVisibility)
+    document.addEventListener('visibilitychange', visibilityHandler)
   },
 
   stopPolling: () => {
     if (pollInterval) {
-      clearTimeout(pollInterval)
+      clearInterval(pollInterval)
       pollInterval = null
     }
-    consecutiveNoChanges = 0
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler)
+      visibilityHandler = null
+    }
+    localVersion = 0
   },
 }))
