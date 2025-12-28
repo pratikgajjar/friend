@@ -42,8 +42,8 @@ interface SyncState {
   error: string | null
   
   // Actions
-  createGroup: (name: string, hostName: string, challengesPerPerson: number) => Promise<Group>
-  joinGroup: (code: string, name: string) => Promise<Group | null>
+  createGroup: (name: string, hostName: string, challengesPerPerson: number, turnstileToken: string) => Promise<Group>
+  joinGroup: (code: string, name: string, turnstileToken?: string) => Promise<Group | null>
   joinWithToken: (token: string) => Promise<{ roomCode: string; name: string } | null>
   fetchGroup: (code: string) => Promise<Group | null>
   leaveGroup: () => void
@@ -83,14 +83,14 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  createGroup: async (name, hostName, challengesPerPerson) => {
+  createGroup: async (name, hostName, challengesPerPerson, turnstileToken) => {
     set({ isLoading: true, error: null })
     
     try {
       const res = await fetch(`${API_BASE}/groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, hostName, challengesPerPerson }),
+        body: JSON.stringify({ name, hostName, challengesPerPerson, turnstileToken }),
       })
       
       if (!res.ok) throw new Error('Failed to create group')
@@ -131,7 +131,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     }
   },
 
-  joinGroup: async (code, name) => {
+  joinGroup: async (code, name, turnstileToken) => {
     set({ isLoading: true, error: null })
     
     try {
@@ -141,7 +141,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       const res = await fetch(`${API_BASE}/groups/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, existingToken }),
+        body: JSON.stringify({ name, existingToken, turnstileToken }),
       })
       
       if (!res.ok) {

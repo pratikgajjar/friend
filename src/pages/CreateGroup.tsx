@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
+import { Turnstile } from '../components/Turnstile'
 import styles from './CreateGroup.module.css'
 
 export function CreateGroup() {
@@ -13,6 +14,7 @@ export function CreateGroup() {
   
   const [challengesPerPerson, setChallengesPerPerson] = useState(6)
   const [isCreating, setIsCreating] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,15 +22,16 @@ export function CreateGroup() {
     const groupName = groupNameRef.current?.value || ''
     const hostName = hostNameRef.current?.value || ''
     
-    if (!groupName.trim() || !hostName.trim() || isCreating) return
+    if (!groupName.trim() || !hostName.trim() || !turnstileToken || isCreating) return
 
     setIsCreating(true)
     try {
-      const group = await createGroup(groupName.trim(), hostName.trim(), challengesPerPerson)
+      const group = await createGroup(groupName.trim(), hostName.trim(), challengesPerPerson, turnstileToken)
       navigate(`/room/${group.code}`)
     } catch (error) {
       console.error('Failed to create group:', error)
       setIsCreating(false)
+      setTurnstileToken(null) // Reset on error to force re-verification
     }
   }
 
@@ -94,10 +97,16 @@ export function CreateGroup() {
             </p>
           </div>
 
+          <Turnstile 
+            onVerify={setTurnstileToken}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => setTurnstileToken(null)}
+          />
+
           <button 
             type="submit" 
             className={styles.submitBtn}
-            disabled={isCreating}
+            disabled={isCreating || !turnstileToken}
           >
             {isCreating ? 'Creating...' : 'Create Group'}
           </button>
