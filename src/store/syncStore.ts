@@ -49,6 +49,7 @@ interface SyncState {
   leaveGroup: () => void
   
   addChallenge: (challenge: Omit<Challenge, 'id' | 'votes' | 'isCompleted'>) => Promise<void>
+  deleteChallenge: (challengeId: string) => Promise<void>
   voteChallenge: (challengeId: string) => Promise<void>
   removeVote: (challengeId: string) => Promise<void>
   toggleChallengeComplete: (challengeId: string) => Promise<void>
@@ -59,6 +60,7 @@ interface SyncState {
   // Magic link helpers
   getMagicLink: () => string | null
   restoreFromStorage: (code: string) => boolean
+  getParticipantTokens: () => Promise<{ id: string; name: string; avatar: string; token: string }[] | null>
   
   // Polling for updates
   startPolling: () => void
@@ -313,6 +315,47 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       await get().fetchGroup(currentRoomCode)
     } catch (error) {
       console.error('Failed to toggle challenge:', error)
+    }
+  },
+
+  deleteChallenge: async (challengeId) => {
+    const { currentRoomCode, currentUserId } = get()
+    if (!currentRoomCode || !currentUserId) return
+    
+    try {
+      const res = await fetch(`${API_BASE}/challenges/${challengeId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-User-Id': currentUserId,
+        },
+      })
+      
+      if (!res.ok) throw new Error('Failed to delete challenge')
+      
+      await get().fetchGroup(currentRoomCode)
+    } catch (error) {
+      console.error('Failed to delete challenge:', error)
+    }
+  },
+
+  getParticipantTokens: async () => {
+    const { currentRoomCode, currentUserId } = get()
+    if (!currentRoomCode || !currentUserId) return null
+    
+    try {
+      const res = await fetch(`${API_BASE}/groups/${currentRoomCode}/tokens`, {
+        headers: {
+          'X-User-Id': currentUserId,
+        },
+      })
+      
+      if (!res.ok) return null
+      
+      const data = await res.json()
+      return data.participants
+    } catch (error) {
+      console.error('Failed to get participant tokens:', error)
+      return null
     }
   },
 
