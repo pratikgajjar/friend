@@ -125,11 +125,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm);
   background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
   border: 1px solid var(--accent-gold);
   border-radius: var(--radius-md);
-  color: var(--accent-gold);
+  color: var(--text-primary);
   font-size: 0.9rem;
   transition: all 0.2s ease;
 }
@@ -137,6 +137,23 @@
 .magicLinkBtn:hover {
   background: var(--accent-gold);
   color: var(--bg-primary);
+}
+
+.userAvatar {
+  font-size: 1.2rem;
+}
+
+.userName {
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkIcon {
+  opacity: 0.7;
+  font-size: 0.8rem;
 }
 
 .manageLinkBtn {
