@@ -1,6 +1,7 @@
 // POST /api/groups/:code/join
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
   TURNSTILE_SECRET_KEY: string
 }
 
@@ -73,6 +74,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `INSERT INTO participants (id, group_id, name, avatar, is_host, token)
      VALUES (?, ?, ?, ?, 0, ?)`
   ).bind(participantId, group.id, name, avatar, token).run()
+
+  // Invalidate cache (new participant added)
+  await context.env.CACHE.delete(`group:${code}`)
 
   return Response.json({ 
     participantId, 

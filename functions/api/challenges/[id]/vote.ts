@@ -1,6 +1,7 @@
 // POST/DELETE /api/challenges/:id/vote - AUTHENTICATED USERS ONLY
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -13,8 +14,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
   
   const challenge = await context.env.DB.prepare(
-    `SELECT votes, group_id FROM challenges WHERE id = ?`
-  ).bind(id).first() as { votes: string; group_id: string } | null
+    `SELECT c.votes, c.group_id, g.code 
+     FROM challenges c 
+     JOIN groups g ON c.group_id = g.id 
+     WHERE c.id = ?`
+  ).bind(id).first() as { votes: string; group_id: string; code: string } | null
   
   if (!challenge) {
     return Response.json({ error: 'Challenge not found' }, { status: 404 })
@@ -36,6 +40,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     await context.env.DB.prepare(
       `UPDATE challenges SET votes = ? WHERE id = ?`
     ).bind(JSON.stringify(votes), id).run()
+    
+    // Invalidate cache
+    await context.env.CACHE.delete(`group:${challenge.code}`)
   }
 
   return Response.json({ votes })
@@ -51,8 +58,11 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   }
   
   const challenge = await context.env.DB.prepare(
-    `SELECT votes FROM challenges WHERE id = ?`
-  ).bind(id).first() as { votes: string } | null
+    `SELECT c.votes, g.code 
+     FROM challenges c 
+     JOIN groups g ON c.group_id = g.id 
+     WHERE c.id = ?`
+  ).bind(id).first() as { votes: string; code: string } | null
   
   if (!challenge) {
     return Response.json({ error: 'Challenge not found' }, { status: 404 })
@@ -65,6 +75,9 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   await context.env.DB.prepare(
     `UPDATE challenges SET votes = ? WHERE id = ?`
   ).bind(JSON.stringify(votes), id).run()
+
+  // Invalidate cache
+  await context.env.CACHE.delete(`group:${challenge.code}`)
 
   return Response.json({ votes })
 }

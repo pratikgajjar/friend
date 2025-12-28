@@ -1,6 +1,7 @@
 // POST /api/challenges/:id/toggle - ASSIGNEE ONLY
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -14,8 +15,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   
   // Get challenge and verify user is the assignee
   const challenge = await context.env.DB.prepare(
-    `SELECT for_participant_id, is_completed FROM challenges WHERE id = ?`
-  ).bind(id).first() as { for_participant_id: string; is_completed: number } | null
+    `SELECT c.for_participant_id, c.is_completed, g.code 
+     FROM challenges c 
+     JOIN groups g ON c.group_id = g.id 
+     WHERE c.id = ?`
+  ).bind(id).first() as { for_participant_id: string; is_completed: number; code: string } | null
   
   if (!challenge) {
     return Response.json({ error: 'Challenge not found' }, { status: 404 })
@@ -29,6 +33,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   await context.env.DB.prepare(
     `UPDATE challenges SET is_completed = NOT is_completed WHERE id = ?`
   ).bind(id).run()
+
+  // Invalidate cache
+  await context.env.CACHE.delete(`group:${challenge.code}`)
 
   return Response.json({ isCompleted: !challenge.is_completed })
 }

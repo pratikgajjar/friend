@@ -1,6 +1,7 @@
 // POST /api/groups - Create a new group
 interface Env {
   DB: D1Database
+  CACHE: KVNamespace
   TURNSTILE_SECRET_KEY: string
 }
 
@@ -56,7 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ).bind(hostId, id, hostName, avatar, token),
   ])
 
-  return Response.json({ 
+  const result = { 
     id, 
     code, 
     name, 
@@ -66,5 +67,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     token, // Return token for magic link
     participants: [{ id: hostId, name: hostName, avatar, isHost: true }],
     challenges: [],
-  })
+  }
+  
+  // Cache the new group (saves D1 read on first fetch)
+  await context.env.CACHE.put(`group:${code}`, JSON.stringify({
+    ...result,
+    createdAt: new Date().toISOString(),
+  }), { expirationTtl: 60 })
+
+  return Response.json(result)
 }
