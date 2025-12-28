@@ -3,7 +3,6 @@ import { bumpVersion } from '../../../lib/cache'
 
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -33,7 +32,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `UPDATE challenges SET is_completed = NOT is_completed WHERE id = ?`
   ).bind(id).run()
 
-  await bumpVersion(context.env.CACHE, challenge.code)
+  await bumpVersion(context.env.DB, challenge.code)
 
   return Response.json({ isCompleted: !challenge.is_completed })
 }

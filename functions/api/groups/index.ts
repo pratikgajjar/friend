@@ -1,9 +1,6 @@
 // POST /api/groups - Create a new group
-import { initVersion } from '../../lib/cache'
-
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
   TURNSTILE_SECRET_KEY: string
 }
 
@@ -48,19 +45,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const avatars = ['🔥', '⚡', '🌟', '🎯', '🚀', '💎', '🎪', '🌈', '🦊', '🐉', '🎸', '🎭']
   const avatar = avatars[Math.floor(Math.random() * avatars.length)]
   
+  // Version starts at 1 (default in schema)
   await context.env.DB.batch([
     context.env.DB.prepare(
-      `INSERT INTO groups (id, code, name, phase, challenges_per_person, created_at)
-       VALUES (?, ?, ?, 'gathering', ?, datetime('now'))`
+      `INSERT INTO groups (id, code, name, phase, challenges_per_person, version, created_at)
+       VALUES (?, ?, ?, 'gathering', ?, 1, datetime('now'))`
     ).bind(id, code, name, challengesPerPerson),
     context.env.DB.prepare(
       `INSERT INTO participants (id, group_id, name, avatar, is_host, token)
        VALUES (?, ?, ?, ?, 1, ?)`
     ).bind(hostId, id, hostName, avatar, token),
   ])
-
-  // Set initial version in KV (no full payload caching needed)
-  await initVersion(context.env.CACHE, code)
 
   return Response.json({ 
     id, 

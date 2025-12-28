@@ -3,7 +3,6 @@ import { bumpVersion } from '../../../lib/cache'
 
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -38,7 +37,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     `UPDATE groups SET phase = ? WHERE id = ?`
   ).bind(nextPhase, group.id).run()
 
-  await bumpVersion(context.env.CACHE, code)
+  await bumpVersion(context.env.DB, code)
 
   return Response.json({ phase: nextPhase })
 }

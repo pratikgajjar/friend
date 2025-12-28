@@ -3,7 +3,6 @@ import { bumpVersion } from '../../../lib/cache'
 
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -41,7 +40,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `UPDATE challenges SET votes = ? WHERE id = ?`
     ).bind(JSON.stringify(votes), id).run()
     
-    await bumpVersion(context.env.CACHE, challenge.code)
+    await bumpVersion(context.env.DB, challenge.code)
   }
 
   return Response.json({ votes })
@@ -75,7 +74,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
       `UPDATE challenges SET votes = ? WHERE id = ?`
     ).bind(JSON.stringify(votes), id).run()
 
-    await bumpVersion(context.env.CACHE, challenge.code)
+    await bumpVersion(context.env.DB, challenge.code)
   }
 
   return Response.json({ votes })

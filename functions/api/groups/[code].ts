@@ -1,17 +1,13 @@
 // GET /api/groups/:code - Get group by code
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const code = (context.params.code as string).toUpperCase()
   
-  // No KV caching of full data - browser has it if version matches
-  // This endpoint only called when version changed
-  
   const group = await context.env.DB.prepare(
-    `SELECT id, code, name, phase, challenges_per_person, deadline, created_at 
+    `SELECT id, code, name, phase, challenges_per_person, deadline, version, created_at 
      FROM groups WHERE code = ?`
   ).bind(code).first() as any
   
@@ -28,10 +24,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
      FROM challenges WHERE group_id = ?`
   ).bind(group.id).all()
 
-  // Get version from KV
-  const kvVersion = await context.env.CACHE.get(`version:${code}`)
-  const version = kvVersion ? parseInt(kvVersion, 10) : 1
-
   return Response.json({
     id: group.id,
     code: group.code,
@@ -39,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     phase: group.phase,
     challengesPerPerson: group.challenges_per_person,
     deadline: group.deadline,
-    version,
+    version: group.version,
     createdAt: group.created_at,
     participants: participants.results.map((p: any) => ({
       id: p.id,

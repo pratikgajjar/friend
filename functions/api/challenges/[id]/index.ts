@@ -3,7 +3,6 @@ import { bumpVersion } from '../../../lib/cache'
 
 interface Env {
   DB: D1Database
-  CACHE: KVNamespace
 }
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
@@ -33,7 +32,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     'DELETE FROM challenges WHERE id = ?'
   ).bind(challengeId).run()
   
-  await bumpVersion(context.env.CACHE, challenge.code)
+  await bumpVersion(context.env.DB, challenge.code)
   
   return Response.json({ success: true })
 }
