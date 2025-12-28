@@ -84,13 +84,15 @@ export function ChallengeBoard() {
             <span>live</span>
           </div>
           
-          {currentUserId && (
+          {currentUser && (
             <button 
               className={styles.magicLinkBtn}
               onClick={() => setShowMagicLinkModal(true)}
               title="Your personal link to access this room"
             >
-              <span>🔗</span> My Link
+              <span className={styles.userAvatar}>{currentUser.avatar}</span>
+              <span className={styles.userName}>{currentUser.name}</span>
+              <span className={styles.linkIcon}>🔗</span>
             </button>
           )}
           
