@@ -118,8 +118,8 @@ export function Terms() {
           <h2>Contact</h2>
           <p>
             Questions? Reach out at{' '}
-            <a href="https://twitter.com/psgajjar91" target="_blank" rel="noopener noreferrer">
-              @psgajjar91
+            <a href="https://x.com/pratikgajjar_in" target="_blank" rel="noopener noreferrer">
+              @pratikgajjar_in
             </a>
             {' '}or through{' '}
             <a href="https://backend.how/about/" target="_blank" rel="noopener noreferrer">
