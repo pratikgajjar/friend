@@ -115,6 +115,7 @@ export function ChallengeBoard() {
         {group.phase === 'gathering' && (
           <GatheringPhase 
             group={group} 
+            currentUserId={currentUserId}
             onInvite={() => setShowInviteModal(true)} 
           />
         )}
@@ -190,7 +191,7 @@ function getNextPhaseLabel(phase: string) {
   }
 }
 
-function GatheringPhase({ group, onInvite }: { group: any; onInvite: () => void }) {
+function GatheringPhase({ group, currentUserId, onInvite }: { group: any; currentUserId: string | null; onInvite: () => void }) {
   return (
     <motion.div 
       className={styles.gatheringPhase}
@@ -203,19 +204,25 @@ function GatheringPhase({ group, onInvite }: { group: any; onInvite: () => void 
       </div>
 
       <div className={styles.participantGrid}>
-        {group.participants.map((p: Participant) => (
-          <motion.div 
-            key={p.id}
-            className={styles.participantCard}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          >
-            <span className={styles.participantAvatar}>{p.avatar}</span>
-            <span className={styles.participantName}>{p.name}</span>
-            {p.isHost && <span className={styles.hostBadge}>Host</span>}
-          </motion.div>
-        ))}
+        {group.participants.map((p: Participant) => {
+          const isMe = p.id === currentUserId
+          return (
+            <motion.div 
+              key={p.id}
+              className={`${styles.participantCard} ${isMe ? styles.isCurrentUser : ''}`}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300 }}
+            >
+              <span className={styles.participantAvatar}>{p.avatar}</span>
+              <span className={styles.participantName}>{p.name}</span>
+              <div className={styles.badges}>
+                {isMe && <span className={styles.youBadge}>You</span>}
+                {p.isHost && <span className={styles.hostBadge}>Host</span>}
+              </div>
+            </motion.div>
+          )
+        })}
         
         <motion.button 
           className={styles.addParticipant}
@@ -324,11 +331,12 @@ function BoardPhase({
                       const suggestedBy = group.participants.find(
                         (p: Participant) => p.id === challenge.suggestedByParticipantId
                       )
+                      const suggestedByMe = challenge.suggestedByParticipantId === currentUserId
                       
                       return (
                         <motion.div
                           key={challenge.id}
-                          className={`${styles.challengeCard} ${isMyVote ? styles.voted : ''}`}
+                          className={`${styles.challengeCard} ${isMyVote ? styles.voted : ''} ${suggestedByMe ? styles.suggestedByMe : ''}`}
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
@@ -336,8 +344,8 @@ function BoardPhase({
                         >
                           <p className={styles.challengeText}>{challenge.text}</p>
                           <div className={styles.challengeMeta}>
-                            <span className={styles.suggestedBy}>
-                              by {suggestedBy?.avatar || '?'}
+                            <span className={`${styles.suggestedBy} ${suggestedByMe ? styles.suggestedByMeText : ''}`}>
+                              {suggestedByMe ? '✏️ by you' : `by ${suggestedBy?.avatar || '?'}`}
                             </span>
                             
                             {phase === 'voting' && (
