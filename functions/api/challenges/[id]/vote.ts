@@ -1,5 +1,5 @@
 // POST/DELETE /api/challenges/:id/vote - AUTHENTICATED USERS ONLY
-import { bumpVersion } from '../../../lib/cache'
+import { bumpVersion } from '../../../lib/version'
 
 interface Env {
   DB: D1Database

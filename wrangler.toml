@@ -9,11 +9,6 @@ binding = "DB"
 database_name = "friend-challenge-db"
 database_id = "25d78a30-bd84-4ade-8bd2-a2376aeed776"
 
-# KV Cache binding (reduces D1 reads by caching group data)
-[[kv_namespaces]]
-binding = "CACHE"
-id = "569d0060c43a489e9e8382f51f096067"
-
 # For local development
 [dev]
 port = 8787
