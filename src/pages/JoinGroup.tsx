@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSyncStore } from '../store/syncStore'
+import { Turnstile } from '../components/Turnstile'
 import styles from './JoinGroup.module.css'
 
 export function JoinGroup() {
@@ -17,6 +18,7 @@ export function JoinGroup() {
   const [error, setError] = useState('')
   const [isJoining, setIsJoining] = useState(false)
   const [tokenVerified, setTokenVerified] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
 
   // Handle magic link token
   useEffect(() => {
@@ -37,22 +39,24 @@ export function JoinGroup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !code || isJoining) return
+    if (!name.trim() || !code || !turnstileToken || isJoining) return
 
     setIsJoining(true)
     setError('')
 
     try {
-      const group = await joinGroup(code, name.trim())
+      const group = await joinGroup(code, name.trim(), turnstileToken)
       if (group) {
         navigate(`/room/${code}`)
       } else {
         setError('Group not found. Please check the code and try again.')
         setIsJoining(false)
+        setTurnstileToken(null)
       }
     } catch (err) {
       setError('Failed to join group. Please try again.')
       setIsJoining(false)
+      setTurnstileToken(null)
     }
   }
 
@@ -126,10 +130,16 @@ export function JoinGroup() {
             </div>
           )}
 
+          <Turnstile 
+            onVerify={setTurnstileToken}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => setTurnstileToken(null)}
+          />
+
           <button 
             type="submit" 
             className={styles.submitBtn}
-            disabled={!name.trim() || isJoining}
+            disabled={!name.trim() || !turnstileToken || isJoining}
           >
             {isJoining ? 'Connecting...' : 'Join Group'}
           </button>
