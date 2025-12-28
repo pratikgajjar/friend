@@ -20,6 +20,7 @@ export function ChallengeBoard() {
   
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showMagicLinkModal, setShowMagicLinkModal] = useState(false)
+  const [showManageLinksModal, setShowManageLinksModal] = useState(false)
 
   // Fetch group data and start polling
   useEffect(() => {
@@ -93,6 +94,16 @@ export function ChallengeBoard() {
             </button>
           )}
           
+          {isHost && (
+            <button 
+              className={styles.manageLinkBtn}
+              onClick={() => setShowManageLinksModal(true)}
+              title="Manage participant recovery links"
+            >
+              <span>🔑</span> Links
+            </button>
+          )}
+          
           <button 
             className={styles.inviteBtn}
             onClick={() => setShowInviteModal(true)}
@@ -148,6 +159,11 @@ export function ChallengeBoard() {
             magicLink={getMagicLink()}
             userName={currentUserName}
             onClose={() => setShowMagicLinkModal(false)} 
+          />
+        )}
+        {showManageLinksModal && (
+          <ManageLinksModal 
+            onClose={() => setShowManageLinksModal(false)} 
           />
         )}
       </AnimatePresence>
@@ -255,6 +271,7 @@ function BoardPhase({
   phase: 'suggesting' | 'voting'
 }) {
   const addChallenge = useSyncStore((s) => s.addChallenge)
+  const deleteChallenge = useSyncStore((s) => s.deleteChallenge)
   const voteChallenge = useSyncStore((s) => s.voteChallenge)
   const removeVote = useSyncStore((s) => s.removeVote)
   
@@ -348,15 +365,27 @@ function BoardPhase({
                               {suggestedByMe ? '✏️ by you' : `by ${suggestedBy?.avatar || '?'}`}
                             </span>
                             
-                            {phase === 'voting' && (
-                              <button
-                                className={`${styles.voteBtn} ${isMyVote ? styles.voteBtnActive : ''}`}
-                                onClick={() => handleVote(challenge.id)}
-                              >
-                                <span>👍</span>
-                                <span>{challenge.votes.length}</span>
-                              </button>
-                            )}
+                            <div className={styles.challengeActions}>
+                              {suggestedByMe && phase === 'suggesting' && (
+                                <button
+                                  className={styles.deleteBtn}
+                                  onClick={() => deleteChallenge(challenge.id)}
+                                  title="Delete this challenge"
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                              
+                              {phase === 'voting' && (
+                                <button
+                                  className={`${styles.voteBtn} ${isMyVote ? styles.voteBtnActive : ''}`}
+                                  onClick={() => handleVote(challenge.id)}
+                                >
+                                  <span>👍</span>
+                                  <span>{challenge.votes.length}</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       )
@@ -644,6 +673,82 @@ function MagicLinkModal({
             Bookmark it or save to notes
           </span>
         </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function ManageLinksModal({ onClose }: { onClose: () => void }) {
+  const [tokens, setTokens] = useState<{ id: string; name: string; avatar: string; token: string }[]>([])
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const getParticipantTokens = useSyncStore((s) => s.getParticipantTokens)
+  
+  useEffect(() => {
+    const fetchTokens = async () => {
+      const result = await getParticipantTokens()
+      if (result) {
+        setTokens(result)
+      }
+      setLoading(false)
+    }
+    fetchTokens()
+  }, [getParticipantTokens])
+
+  const handleCopy = async (id: string, token: string) => {
+    const magicLink = `${window.location.origin}/join/auth/${token}`
+    await navigator.clipboard.writeText(magicLink)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  return (
+    <motion.div 
+      className={styles.modalOverlay}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div 
+        className={styles.modal}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className={styles.modalClose} onClick={onClose}>×</button>
+        
+        <h2>🔑 Participant Recovery Links</h2>
+        <p>
+          As the host, you can copy recovery links for participants who lost access.
+        </p>
+
+        <div className={styles.magicLinkWarning}>
+          <span>⚠️</span>
+          <p>
+            <strong>Send links privately!</strong> Each link gives full access to that person's identity.
+          </p>
+        </div>
+
+        {loading ? (
+          <p className={styles.loadingText}>Loading...</p>
+        ) : (
+          <div className={styles.participantTokenList}>
+            {tokens.map((p) => (
+              <div key={p.id} className={styles.participantTokenItem}>
+                <span className={styles.participantTokenAvatar}>{p.avatar}</span>
+                <span className={styles.participantTokenName}>{p.name}</span>
+                <button 
+                  className={styles.copyLinkBtn}
+                  onClick={() => handleCopy(p.id, p.token)}
+                >
+                  {copiedId === p.id ? '✓ Copied!' : '📋 Copy Link'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
     </motion.div>
   )
