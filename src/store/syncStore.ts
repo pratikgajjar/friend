@@ -1,5 +1,4 @@
 import * as Y from 'yjs'
-import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { create } from 'zustand'
 
@@ -34,12 +33,15 @@ export interface Group {
   createdAt: string
 }
 
-// Y.js documents and providers per room
-const rooms = new Map<string, {
+// Room state per room code
+interface RoomState {
   ydoc: Y.Doc
-  webrtcProvider: WebrtcProvider
   indexeddbProvider: IndexeddbPersistence
-}>()
+  broadcastChannel: BroadcastChannel
+  cleanup: () => void
+}
+
+const rooms = new Map<string, RoomState>()
 
 // Avatar options
 const avatarEmojis = ['🔥', '⚡', '🌟', '🎯', '🚀', '💎', '🎪', '🌈', '🦊', '🐉', '🎸', '🎭']
@@ -47,23 +49,64 @@ const avatarEmojis = ['🔥', '⚡', '🌟', '🎯', '🚀', '💎', '🎪', '�
 const generateId = () => Math.random().toString(36).substring(2, 9)
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase()
 
-// Get or create a Y.js room
-function getOrCreateRoom(roomCode: string) {
+// BroadcastChannel-based sync (works across browser tabs, no server needed)
+function setupBroadcastSync(roomCode: string, ydoc: Y.Doc): BroadcastChannel {
+  const channel = new BroadcastChannel(`friend-challenge-${roomCode}`)
+  
+  // Send updates to other tabs
+  ydoc.on('update', (update: Uint8Array, origin: any) => {
+    if (origin !== 'broadcast') {
+      channel.postMessage({
+        type: 'sync',
+        update: Array.from(update),
+      })
+    }
+  })
+
+  // Receive updates from other tabs
+  channel.onmessage = (event) => {
+    if (event.data.type === 'sync') {
+      const update = new Uint8Array(event.data.update)
+      Y.applyUpdate(ydoc, update, 'broadcast')
+    } else if (event.data.type === 'request-state') {
+      // New tab joined, send full state
+      const state = Y.encodeStateAsUpdate(ydoc)
+      channel.postMessage({
+        type: 'full-state',
+        state: Array.from(state),
+      })
+    } else if (event.data.type === 'full-state') {
+      const state = new Uint8Array(event.data.state)
+      Y.applyUpdate(ydoc, state, 'broadcast')
+    }
+  }
+
+  // Request state from other tabs when joining
+  channel.postMessage({ type: 'request-state' })
+
+  return channel
+}
+
+// Get or create a room
+function getOrCreateRoom(roomCode: string): RoomState {
   if (rooms.has(roomCode)) {
     return rooms.get(roomCode)!
   }
 
   const ydoc = new Y.Doc()
   
-  // WebRTC provider for P2P sync
-  const webrtcProvider = new WebrtcProvider(`friend-challenge-${roomCode}`, ydoc, {
-    signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com'],
-  })
-
   // IndexedDB for local persistence
   const indexeddbProvider = new IndexeddbPersistence(`friend-challenge-${roomCode}`, ydoc)
+  
+  // BroadcastChannel for cross-tab sync
+  const broadcastChannel = setupBroadcastSync(roomCode, ydoc)
 
-  const room = { ydoc, webrtcProvider, indexeddbProvider }
+  const cleanup = () => {
+    broadcastChannel.close()
+    ydoc.destroy()
+  }
+
+  const room: RoomState = { ydoc, indexeddbProvider, broadcastChannel, cleanup }
   rooms.set(roomCode, room)
 
   return room
@@ -95,7 +138,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   currentUserId: null,
   currentRoomCode: null,
   group: null,
-  connectedPeers: 0,
+  connectedPeers: 1,
   isLoading: false,
 
   createGroup: async (name, hostName, challengesPerPerson) => {
@@ -141,11 +184,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     // Subscribe to changes
     subscribeToRoom(code, set)
 
-    // Track connected peers
-    room.webrtcProvider.awareness.on('change', () => {
-      set({ connectedPeers: room.webrtcProvider.awareness.getStates().size })
-    })
-
     const group: Group = {
       ...groupData,
       participants: [host],
@@ -170,11 +208,11 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     
     const room = getOrCreateRoom(code)
     
-    // Wait for sync
+    // Wait for IndexedDB sync
     await room.indexeddbProvider.whenSynced
     
-    // Give WebRTC a moment to connect
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Give BroadcastChannel a moment to sync with other tabs
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     const yGroup = room.ydoc.getMap('group')
     const yParticipants = room.ydoc.getArray<Participant>('participants')
@@ -215,18 +253,13 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     // Subscribe to changes
     subscribeToRoom(code, set)
 
-    // Track connected peers
-    room.webrtcProvider.awareness.on('change', () => {
-      set({ connectedPeers: room.webrtcProvider.awareness.getStates().size })
-    })
-
     const group = buildGroupFromYDoc(room.ydoc)
 
     set({
       currentUserId: participantId,
       currentRoomCode: code,
       group,
-      connectedPeers: room.webrtcProvider.awareness.getStates().size,
+      connectedPeers: 1,
       isLoading: false,
     })
 
@@ -237,7 +270,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     const { currentRoomCode } = get()
     if (currentRoomCode && rooms.has(currentRoomCode)) {
       const room = rooms.get(currentRoomCode)!
-      room.webrtcProvider.destroy()
+      room.cleanup()
       rooms.delete(currentRoomCode)
     }
     set({
@@ -404,4 +437,3 @@ function subscribeToRoom(code: string, set: (state: Partial<SyncState>) => void)
 if (typeof window !== 'undefined') {
   (window as any).rooms = rooms
 }
-
