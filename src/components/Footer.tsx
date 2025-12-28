@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import styles from './Footer.module.css'
 
 export function Footer() {
@@ -26,6 +27,14 @@ export function Footer() {
             Twitter
           </a>
         </div>
+      </div>
+      
+      <div className={styles.legal}>
+        <Link to="/privacy">Privacy</Link>
+        <span className={styles.divider}>·</span>
+        <Link to="/terms">Terms</Link>
+        <span className={styles.divider}>·</span>
+        <span className={styles.encrypted}>🔐 End-to-End Encrypted</span>
       </div>
       
       <div className={styles.inspired}>

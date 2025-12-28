@@ -3,6 +3,8 @@ import { Landing } from './pages/Landing'
 import { CreateGroup } from './pages/CreateGroup'
 import { JoinGroup } from './pages/JoinGroup'
 import { ChallengeBoard } from './pages/ChallengeBoard'
+import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
 import { Footer } from './components/Footer'
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
         <Route path="/join/auth/:token" element={<JoinGroup />} />
         <Route path="/join/:code" element={<JoinGroup />} />
         <Route path="/room/:code" element={<ChallengeBoard />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
       </Routes>
       {showFooter && <Footer />}
     </>
