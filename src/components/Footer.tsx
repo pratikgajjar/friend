@@ -19,12 +19,12 @@ export function Footer() {
             backend.how
           </a>
           <span className={styles.divider}>·</span>
-          <a href="https://github.com/psg-19" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/pratikgajjar" target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
           <span className={styles.divider}>·</span>
-          <a href="https://twitter.com/psgajjar91" target="_blank" rel="noopener noreferrer">
-            Twitter
+          <a href="https://x.com/pratikgajjar_in" target="_blank" rel="noopener noreferrer">
+            X
           </a>
         </div>
       </div>
