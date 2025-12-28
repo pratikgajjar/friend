@@ -1,0 +1,215 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  position: relative;
+}
+
+.backLink {
+  position: absolute;
+  top: var(--space-xl);
+  left: var(--space-xl);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.backLink:hover {
+  color: var(--text-primary);
+}
+
+.card {
+  width: 100%;
+  max-width: 450px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.header strong {
+  color: var(--accent-fire);
+}
+
+.participants {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.participantsLabel {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.avatarList {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: 50%;
+  font-size: 1.2rem;
+}
+
+.avatarPlus {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(232, 93, 4, 0.1);
+  border: 1px dashed var(--accent-fire);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-fire);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.input {
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.input:focus {
+  border-color: var(--accent-fire);
+  box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.1);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.error {
+  padding: var(--space-md);
+  background: rgba(255, 90, 95, 0.1);
+  border: 1px solid rgba(255, 90, 95, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--accent-coral);
+  font-size: 0.9rem;
+}
+
+.submitBtn {
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, var(--accent-fire), var(--accent-ember));
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(232, 93, 4, 0.4);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorState {
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+.errorIcon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: var(--space-lg);
+}
+
+.errorState h1 {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-md);
+}
+
+.errorState p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+}
+
+.errorState strong {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.homeLink {
+  display: inline-block;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.homeLink:hover {
+  border-color: var(--accent-fire);
+}
+
