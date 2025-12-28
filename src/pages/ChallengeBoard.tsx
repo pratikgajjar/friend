@@ -693,8 +693,21 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
   const [tokens, setTokens] = useState<{ id: string; name: string; avatar: string; token: string }[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [keyMissing, setKeyMissing] = useState(false)
   const getParticipantTokens = useSyncStore((s) => s.getParticipantTokens)
   const encryptionKey = useSyncStore((s) => s.encryptionKey)
+  const currentRoomCode = useSyncStore((s) => s.currentRoomCode)
+  
+  // Get encryption key from store or localStorage
+  const getKey = (): string | null => {
+    if (encryptionKey) return encryptionKey
+    if (currentRoomCode) {
+      // Try to get from localStorage
+      const stored = localStorage.getItem(`e2e_key_${currentRoomCode.toUpperCase()}`)
+      return stored
+    }
+    return null
+  }
   
   useEffect(() => {
     const fetchTokens = async () => {
@@ -702,17 +715,24 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
       if (result) {
         setTokens(result)
       }
+      // Check if we have the encryption key
+      if (!getKey()) {
+        setKeyMissing(true)
+      }
       setLoading(false)
     }
     fetchTokens()
   }, [getParticipantTokens])
 
   const handleCopy = async (id: string, token: string) => {
-    // Include encryption key in magic link (Base64URL - no encoding needed)
-    let magicLink = `${window.location.origin}/join/auth/${token}`
-    if (encryptionKey) {
-      magicLink += `#key=${encryptionKey}`
+    const key = getKey()
+    if (!key) {
+      alert('Encryption key not found. Please reload the page using your original invite link.')
+      return
     }
+    
+    // Include encryption key in magic link (Base64URL - no encoding needed)
+    const magicLink = `${window.location.origin}/join/auth/${token}#key=${key}`
     await navigator.clipboard.writeText(magicLink)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
@@ -746,6 +766,15 @@ function ManageLinksModal({ onClose }: { onClose: () => void }) {
             <strong>Send links privately!</strong> Each link gives full access to that person's identity.
           </p>
         </div>
+
+        {keyMissing && (
+          <div className={styles.magicLinkWarning} style={{ background: 'rgba(255, 90, 95, 0.1)', borderColor: 'rgba(255, 90, 95, 0.3)' }}>
+            <span>🔐</span>
+            <p>
+              <strong>Encryption key not found!</strong> Reload the page using your original invite link to copy links with encryption.
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <p className={styles.loadingText}>Loading...</p>
