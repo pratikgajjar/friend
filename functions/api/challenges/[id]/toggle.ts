@@ -1,5 +1,5 @@
 // POST /api/challenges/:id/toggle - ASSIGNEE ONLY
-import { bumpVersion } from '../../../lib/cache'
+import { bumpVersion } from '../../../lib/version'
 
 interface Env {
   DB: D1Database

@@ -1,5 +1,5 @@
 // Shared utilities for version management
-// Version stored in D1 for strong consistency (no KV propagation delay)
+// Version stored in D1 for strong consistency
 
 /**
  * Bump version in D1 - strongly consistent, instant for all users
@@ -20,3 +20,4 @@ export async function getVersion(db: D1Database, code: string): Promise<number> 
   
   return result?.version ?? 0
 }
+

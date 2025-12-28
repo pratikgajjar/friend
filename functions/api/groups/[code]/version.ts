@@ -1,5 +1,5 @@
 // GET /api/groups/:code/version - Get version from D1 (strongly consistent!)
-import { getVersion } from '../../../lib/cache'
+import { getVersion } from '../../../lib/version'
 
 interface Env {
   DB: D1Database
