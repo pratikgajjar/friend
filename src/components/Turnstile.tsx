@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 // Turnstile site key
 const TURNSTILE_SITE_KEY = '0x4AAAAAACJdYEUXutScMXtl'
@@ -6,11 +6,11 @@ const TURNSTILE_SITE_KEY = '0x4AAAAAACJdYEUXutScMXtl'
 declare global {
   interface Window {
     turnstile: {
-      render: (container: HTMLElement, options: {
+      render: (container: string | HTMLElement, options: {
         sitekey: string
         callback: (token: string) => void
-        'expired-callback': () => void
-        'error-callback': () => void
+        'expired-callback'?: () => void
+        'error-callback'?: () => void
         theme?: 'light' | 'dark' | 'auto'
         size?: 'normal' | 'compact'
       }) => string
@@ -26,76 +26,78 @@ interface TurnstileProps {
   onError?: () => void
 }
 
+// Generate a unique ID for each Turnstile instance
+let turnstileIdCounter = 0
+
 export function Turnstile({ onVerify, onExpire, onError }: TurnstileProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
-  const [isReady, setIsReady] = useState(false)
-  const renderedRef = useRef(false)
-
-  // Store callbacks in refs to avoid re-renders
-  const onVerifyRef = useRef(onVerify)
-  const onExpireRef = useRef(onExpire)
-  const onErrorRef = useRef(onError)
+  const containerIdRef = useRef<string>(`turnstile-container-${++turnstileIdCounter}`)
+  const mountedRef = useRef(false)
+  
+  // Store callbacks in refs to prevent re-renders
+  const callbacksRef = useRef({ onVerify, onExpire, onError })
+  callbacksRef.current = { onVerify, onExpire, onError }
 
   useEffect(() => {
-    onVerifyRef.current = onVerify
-    onExpireRef.current = onExpire
-    onErrorRef.current = onError
-  }, [onVerify, onExpire, onError])
+    // Prevent double-mounting in React Strict Mode
+    if (mountedRef.current) return
+    mountedRef.current = true
 
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile || renderedRef.current) return
+    let checkInterval: ReturnType<typeof setInterval>
     
-    renderedRef.current = true
-
-    widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: TURNSTILE_SITE_KEY,
-      callback: (token) => onVerifyRef.current(token),
-      'expired-callback': () => onExpireRef.current?.(),
-      'error-callback': () => onErrorRef.current?.(),
-      theme: 'dark',
-      size: 'normal',
-    })
-  }, [])
-
-  useEffect(() => {
-    // Wait for Turnstile script to load
-    const checkTurnstile = () => {
-      if (window.turnstile) {
-        setIsReady(true)
-      } else {
-        setTimeout(checkTurnstile, 100)
+    const initTurnstile = () => {
+      const container = document.getElementById(containerIdRef.current)
+      if (!container || !window.turnstile) return false
+      
+      // Already rendered
+      if (widgetIdRef.current) return true
+      
+      try {
+        widgetIdRef.current = window.turnstile.render(container, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => callbacksRef.current.onVerify(token),
+          'expired-callback': () => callbacksRef.current.onExpire?.(),
+          'error-callback': () => callbacksRef.current.onError?.(),
+          theme: 'dark',
+          size: 'normal',
+        })
+        return true
+      } catch (e) {
+        console.error('Turnstile render error:', e)
+        return false
       }
     }
-    checkTurnstile()
 
+    // Poll until Turnstile is ready
+    checkInterval = setInterval(() => {
+      if (initTurnstile()) {
+        clearInterval(checkInterval)
+      }
+    }, 100)
+
+    // Cleanup on unmount
     return () => {
+      clearInterval(checkInterval)
       if (widgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.remove(widgetIdRef.current)
         } catch (e) {
-          // Widget might already be removed
+          // Ignore errors during cleanup
         }
         widgetIdRef.current = null
-        renderedRef.current = false
       }
+      mountedRef.current = false
     }
-  }, [])
-
-  useEffect(() => {
-    if (isReady) {
-      renderWidget()
-    }
-  }, [isReady, renderWidget])
+  }, []) // Empty dependency array - only run once
 
   return (
     <div 
-      ref={containerRef} 
+      id={containerIdRef.current}
       style={{ 
         display: 'flex', 
         justifyContent: 'center',
         margin: '1rem 0',
-        minHeight: '65px', // Reserve space for the widget
+        minHeight: '65px',
       }} 
     />
   )
