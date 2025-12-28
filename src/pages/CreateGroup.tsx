@@ -41,23 +41,11 @@ export function CreateGroup() {
     const groupName = groupNameRef.current?.value || ''
     const hostName = hostNameRef.current?.value || ''
     
-    console.log('Form submitted!', { groupName, hostName, isCreating })
-    
-    if (!groupName.trim() || !hostName.trim()) {
-      console.log('Validation failed - empty fields')
-      return
-    }
-    
-    if (isCreating) {
-      console.log('Already creating')
-      return
-    }
+    if (!groupName.trim() || !hostName.trim() || isCreating) return
 
     setIsCreating(true)
     try {
-      console.log('Creating group...')
       const group = await createGroup(groupName.trim(), hostName.trim(), challengesPerPerson)
-      console.log('Group created:', group)
       navigate(`/room/${group.code}`)
     } catch (error) {
       console.error('Failed to create group:', error)
