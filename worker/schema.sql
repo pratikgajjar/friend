@@ -20,6 +20,7 @@ CREATE TABLE participants (
   name TEXT NOT NULL,
   avatar TEXT NOT NULL,
   is_host INTEGER DEFAULT 0,
+  token TEXT UNIQUE NOT NULL,
   FOREIGN KEY (group_id) REFERENCES groups(id)
 );
 
@@ -38,5 +39,5 @@ CREATE TABLE challenges (
 
 CREATE INDEX idx_groups_code ON groups(code);
 CREATE INDEX idx_participants_group ON participants(group_id);
+CREATE INDEX idx_participants_token ON participants(token);
 CREATE INDEX idx_challenges_group ON challenges(group_id);
-
