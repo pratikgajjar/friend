@@ -158,11 +158,6 @@ export function Landing() {
         </motion.div>
       </main>
 
-      <footer className={styles.footer}>
-        <p>
-          Inspired by <a href="https://moxie.org/stories/year-of-the-challenge/" target="_blank" rel="noopener noreferrer">Moxie Marlinspike's Year of the Challenge</a>
-        </p>
-      </footer>
     </div>
   )
 }
